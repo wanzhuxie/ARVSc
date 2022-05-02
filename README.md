@@ -1,2 +1,2 @@
 # ARVS
-Video System Based on Augmented Reality
+Video Display System Based on Augmented Reality
