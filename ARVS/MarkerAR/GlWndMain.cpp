@@ -43,7 +43,7 @@ int GetSysTime_number2()
 
 
 
-void ToolTestMain::loadGLTextures()
+void GlWndMain::loadGLTextures()
 {
 	glGenTextures(6, texture);//创建6个纹理
 	for (int i=0;i<6;i++)
@@ -68,7 +68,7 @@ void ToolTestMain::loadGLTextures()
 	}
 	glEnable(GL_TEXTURE_2D);
 }
-void ToolTestMain::DrawARBox()
+void GlWndMain::DrawARBox()
 {
 	//如果加载视频成功，就把视频显示在方块上，否则显示图片数据
 	if(bARVidioOK)
@@ -213,7 +213,7 @@ void ToolTestMain::DrawARBox()
 
 
 }
-void ToolTestMain::DrawMainBox()
+void GlWndMain::DrawMainBox()
 {
 
 	glBindTexture(GL_TEXTURE_2D, texture[0]);
@@ -273,7 +273,7 @@ void ToolTestMain::DrawMainBox()
 }
 
 
-ToolTestMain::ToolTestMain(QWidget *parent)
+GlWndMain::GlWndMain(QWidget *parent)
 	: QGLWidget(parent)
 	,_bRun(false)
 	,_bPause(false)
@@ -301,22 +301,9 @@ ToolTestMain::ToolTestMain(QWidget *parent)
 
 	moveX=moveY=0;
 	zoom = -10.0;
-	hold = 0.0;
-	box = top = tri = 0;
-	xLoop = yLoop = 0;
 	fogFilter = 3;
-	wiggle_count = 0;
-	filter = 0;
 	light = false;
-	blend = false;
 	fullScreen = false;
-	sphere_x = 2.0;
-	sphere_y = 0;
-	obj =0;
-	p1 = 0;
-	p2 = 1;
-	part1 = 0;
-	part2 = 0;
 
 	if (fullScreen)
 	{
@@ -324,10 +311,10 @@ ToolTestMain::ToolTestMain(QWidget *parent)
 	}
 	startTimer(5);
 }
-ToolTestMain::~ToolTestMain()
+GlWndMain::~GlWndMain()
 {
 }
-void ToolTestMain::initializeGL()
+void GlWndMain::initializeGL()
 {
 
 	m_videoFrame=VideoCapture(0);
@@ -416,7 +403,7 @@ void ToolTestMain::initializeGL()
 	m_dist_coeff = Mat(1, 5, CV_32FC1, dist_coeff).clone();
 
 }
-void ToolTestMain::resizeGL(int w, int h)
+void GlWndMain::resizeGL(int w, int h)
 {
 
 	if (h==0)//防止高为0
@@ -433,7 +420,7 @@ void ToolTestMain::resizeGL(int w, int h)
 
 
 }
-void ToolTestMain::paintGL()
+void GlWndMain::paintGL()
 {
 	int iStartTime=GetSysTime_number2();
 
@@ -618,22 +605,22 @@ void ToolTestMain::paintGL()
 }
 
 //重绘
-void ToolTestMain::timerEvent(QTimerEvent *)
+void GlWndMain::timerEvent(QTimerEvent *)
 {
 	updateGL();
 }
 //鼠标单击事件
-void ToolTestMain::mousePressEvent(QMouseEvent *e)
+void GlWndMain::mousePressEvent(QMouseEvent *e)
 {
 	setCursor(Qt::OpenHandCursor);
 	lastPos = e->pos();
 }
-void ToolTestMain::mouseReleaseEvent(QMouseEvent *e)
+void GlWndMain::mouseReleaseEvent(QMouseEvent *e)
 {
 	setCursor(Qt::ArrowCursor);
 	lastPos = e->pos();
 }
-void ToolTestMain::mouseMoveEvent(QMouseEvent *e)
+void GlWndMain::mouseMoveEvent(QMouseEvent *e)
 {
 	GLfloat dx = GLfloat(e->x()-lastPos.x())/width();
 	GLfloat dy = GLfloat(e->y()-lastPos.y())/height();
@@ -658,7 +645,7 @@ void ToolTestMain::mouseMoveEvent(QMouseEvent *e)
 	}
 }
 //滚轮事件
-void ToolTestMain::wheelEvent(QWheelEvent *e)
+void GlWndMain::wheelEvent(QWheelEvent *e)
 {
 	GLfloat zValue = e->delta();
 	zoom += zValue*0.005;
@@ -669,7 +656,7 @@ void ToolTestMain::wheelEvent(QWheelEvent *e)
 	updateGL();
 }
 
-void ToolTestMain::intrinsicMatrix2ProjectionMatrix(cv::Mat& camera_matrix, float width, float height, float near_plane, float far_plane, float* projection_matrix)
+void GlWndMain::intrinsicMatrix2ProjectionMatrix(cv::Mat& camera_matrix, float width, float height, float near_plane, float far_plane, float* projection_matrix)
 {
 	float f_x = camera_matrix.at<float>(0,0);
 	float f_y = camera_matrix.at<float>(1,1);
@@ -698,7 +685,7 @@ void ToolTestMain::intrinsicMatrix2ProjectionMatrix(cv::Mat& camera_matrix, floa
 	projection_matrix[15] = 0.0f;
 }
 
-void ToolTestMain::extrinsicMatrix2ModelViewMatrix(cv::Mat& rotation, cv::Mat& translation, float* model_view_matrix)
+void GlWndMain::extrinsicMatrix2ModelViewMatrix(cv::Mat& rotation, cv::Mat& translation, float* model_view_matrix)
 {
 	//绕X轴旋转180度，从OpenCV坐标系变换为OpenGL坐标系
 	static double d[] = 
@@ -734,55 +721,55 @@ void ToolTestMain::extrinsicMatrix2ModelViewMatrix(cv::Mat& rotation, cv::Mat& t
 }
 
 
-void ToolTestMain::Run()
+void GlWndMain::Run()
 {
 	_bRun=true;
 }
-void ToolTestMain::Stop()
+void GlWndMain::Stop()
 {
 	_bRun=false;
 }
-void ToolTestMain::Pause()
+void GlWndMain::Pause()
 {
 	_bPause=true;
 }
-void ToolTestMain::Continue()
+void GlWndMain::Continue()
 {
 	_bPause=false;
 }
-void ToolTestMain::OpenHyaline()
+void GlWndMain::OpenHyaline()
 {
 	_bHyaline=true;
 }
-void ToolTestMain::CloseHyaline()
+void GlWndMain::CloseHyaline()
 {
 	_bHyaline=false;
 }
-void ToolTestMain::OpenFog()
+void GlWndMain::OpenFog()
 {
 	_bFog=true;
 }
-void ToolTestMain::CloseFog()
+void GlWndMain::CloseFog()
 {
 	_bFog=false;
 }
-void ToolTestMain::SetRotateStepX(GLfloat fStep)
+void GlWndMain::SetRotateStepX(GLfloat fStep)
 {
 	stepRotX=fStep;
 }
-void ToolTestMain::SetRotateStepY(GLfloat fStep)
+void GlWndMain::SetRotateStepY(GLfloat fStep)
 {
 	stepRotY=fStep;
 }
-void ToolTestMain::SetRotateStepZ(GLfloat fStep)
+void GlWndMain::SetRotateStepZ(GLfloat fStep)
 {
 	stepRotZ=fStep;
 }
-void ToolTestMain::OpenVideo()
+void GlWndMain::OpenVideo()
 {
 	_bOpenAR=true;
 }
-void ToolTestMain::CloseVideo()
+void GlWndMain::CloseVideo()
 {
 	_bOpenAR=false;
 }

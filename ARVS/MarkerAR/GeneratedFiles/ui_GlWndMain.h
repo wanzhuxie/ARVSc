@@ -18,30 +18,30 @@
 
 QT_BEGIN_NAMESPACE
 
-class Ui_ToolTestMainClass
+class Ui_GlWndMainClass
 {
 public:
 
-    void setupUi(QWidget *ToolTestMainClass)
+    void setupUi(QWidget *GlWndMainClass)
     {
-        if (ToolTestMainClass->objectName().isEmpty())
-            ToolTestMainClass->setObjectName(QStringLiteral("ToolTestMainClass"));
-        ToolTestMainClass->resize(365, 300);
+        if (GlWndMainClass->objectName().isEmpty())
+            GlWndMainClass->setObjectName(QStringLiteral("GlWndMainClass"));
+        GlWndMainClass->resize(365, 300);
 
-        retranslateUi(ToolTestMainClass);
+        retranslateUi(GlWndMainClass);
 
-        QMetaObject::connectSlotsByName(ToolTestMainClass);
+        QMetaObject::connectSlotsByName(GlWndMainClass);
     } // setupUi
 
-    void retranslateUi(QWidget *ToolTestMainClass)
+    void retranslateUi(QWidget *GlWndMainClass)
     {
-        ToolTestMainClass->setWindowTitle(QApplication::translate("ToolTestMainClass", "ToolTestMain", 0));
+        GlWndMainClass->setWindowTitle(QApplication::translate("GlWndMainClass", "GlWndMain", 0));
     } // retranslateUi
 
 };
 
 namespace Ui {
-    class ToolTestMainClass: public Ui_ToolTestMainClass {};
+    class GlWndMainClass: public Ui_GlWndMainClass {};
 } // namespace Ui
 
 QT_END_NAMESPACE

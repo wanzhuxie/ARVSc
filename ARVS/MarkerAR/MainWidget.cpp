@@ -6,7 +6,7 @@
 MainWidget::MainWidget(QWidget *parent)
 	: QWidget(parent)
 	,_IsRunning(false)
-	,pSWIEETool(0)
+	,pARTool(0)
 	,pPushButton1(0)
 	,pPushButton2(0)
 	,pPushButton3(0)
@@ -14,7 +14,7 @@ MainWidget::MainWidget(QWidget *parent)
 	,pPushButton5(0)
 	,pPushButton6(0)
 {
-	pSWIEETool=new ToolTestMain(this);
+	pARTool=new GlWndMain(this);
 	pPushButton1=new QPushButton("Start", this);
 	pPushButton2=new QPushButton("Fog:On", this);		//pPushButton2->setVisible(false);
 	pPushButton3=new QPushButton("Pause", this);
@@ -42,7 +42,7 @@ MainWidget::MainWidget(QWidget *parent)
 	layoutOnPushButton->addSpacerItem(spacerItem);
 	
 	QHBoxLayout *layout = new QHBoxLayout;
-	layout->addWidget(pSWIEETool);
+	layout->addWidget(pARTool);
 	layout->addLayout(layoutOnPushButton);
 	setLayout(layout);
 
@@ -70,13 +70,13 @@ void MainWidget::ActionStart()
 		if (pPushButton1->text()=="Start")
 		{
 			pPushButton1->setText("End");
-			pSWIEETool->Run();
+			pARTool->Run();
 			_IsRunning=true;
 		}
 		else
 		{
 			pPushButton1->setText("Start");
-			pSWIEETool->Stop();
+			pARTool->Stop();
 			_IsRunning=false;
 		}
 	}
@@ -88,12 +88,12 @@ void MainWidget::ActionPause()
 		if (pPushButton3->text()=="Pause")
 		{
 			pPushButton3->setText("Continue");
-			pSWIEETool->Pause();
+			pARTool->Pause();
 		}
 		else
 		{
 			pPushButton3->setText("Pause");
-			pSWIEETool->Continue();
+			pARTool->Continue();
 		}
 	}
 }
@@ -104,12 +104,12 @@ void MainWidget::ActionHyaline()
 		if (pPushButton4->text()=="Hyaline:On")
 		{
 			pPushButton4->setText("Hyaline:Off");
-			pSWIEETool->OpenHyaline();
+			pARTool->OpenHyaline();
 		}
 		else
 		{
 			pPushButton4->setText("Hyaline:On");
-			pSWIEETool->CloseHyaline();
+			pARTool->CloseHyaline();
 		}
 	}
 }
@@ -120,12 +120,12 @@ void MainWidget::ActionFog()
 		if (pPushButton2->text()=="Fog:On")
 		{
 			pPushButton2->setText("Fog:Off");
-			pSWIEETool->OpenFog();
+			pARTool->OpenFog();
 		}
 		else
 		{
 			pPushButton2->setText("Fog:On");
-			pSWIEETool->CloseFog();
+			pARTool->CloseFog();
 		}
 	}
 }
@@ -135,27 +135,27 @@ void MainWidget::ActionVideo()
 	if (onOffValue=="AR:Off")
 	{
 		pPushButton5->setText("AR:On");
-		pSWIEETool->CloseVideo();
+		pARTool->CloseVideo();
 	}
 	else	if (onOffValue=="AR:On")
 	{
 		pPushButton5->setText("AR:Off");
-		pSWIEETool->OpenVideo();
+		pARTool->OpenVideo();
 	}
 }
 
 void MainWidget::ActionSlider1()
 {
-	int iSlider=pSlider1->value();	pSWIEETool->SetRotateStepX((GLfloat)iSlider/50);
+	int iSlider=pSlider1->value();	pARTool->SetRotateStepX((GLfloat)iSlider/50);
 
 }
 void MainWidget::ActionSlider2()
 {
-	int iSlider=pSlider2->value();	pSWIEETool->SetRotateStepY((GLfloat)iSlider/50);
+	int iSlider=pSlider2->value();	pARTool->SetRotateStepY((GLfloat)iSlider/50);
 
 }
 void MainWidget::ActionSlider3()
 {
-	int iSlider=pSlider3->value();	pSWIEETool->SetRotateStepZ((GLfloat)iSlider/50);
+	int iSlider=pSlider3->value();	pARTool->SetRotateStepZ((GLfloat)iSlider/50);
 
 }

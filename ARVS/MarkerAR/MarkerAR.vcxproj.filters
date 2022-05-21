@@ -10,24 +10,6 @@
     <ClCompile Include="MarkerRecognizer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\qrc_ToolTestMain.cpp">
-      <Filter>GeneratedFiles</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_MainWidget.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_ToolTestMain.cpp">
-      <Filter>GeneratedFiles\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_MainWidget.cpp">
-      <Filter>GeneratedFiles\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_ToolTestMain.cpp">
-      <Filter>GeneratedFiles\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\qrc_GlWndMain.cpp">
-      <Filter>Generated Files</Filter>
-    </ClCompile>
     <ClCompile Include="GlWndMain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -37,15 +19,24 @@
     <ClCompile Include="GeneratedFiles\Release\moc_GlWndMain.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_MainWidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_MainWidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\qrc_GlWndMain.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MarkerRecognizer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GeneratedFiles\ui_MainWidget.h">
-      <Filter>GeneratedFiles</Filter>
-    </ClInclude>
     <ClInclude Include="GeneratedFiles\ui_GlWndMain.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_MainWidget.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -78,15 +69,6 @@
     </Filter>
     <Filter Include="Form Files">
       <UniqueIdentifier>{92882a09-f700-4844-8931-99c7f34b2939}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="GeneratedFiles">
-      <UniqueIdentifier>{53293d75-c9bb-4663-a3e8-df09f327c2a2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="GeneratedFiles\Debug">
-      <UniqueIdentifier>{16b4a4d1-642e-4831-8709-818d33b4f0d4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="GeneratedFiles\Release">
-      <UniqueIdentifier>{6011a22b-45c0-4dbb-abed-f810716f99c9}</UniqueIdentifier>
     </Filter>
     <Filter Include="Generated Files">
       <UniqueIdentifier>{71ED8ED8-ACB9-4CE9-BBE1-E00B30144E11}</UniqueIdentifier>

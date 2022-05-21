@@ -18,25 +18,25 @@
 #endif
 
 QT_BEGIN_MOC_NAMESPACE
-struct qt_meta_stringdata_ToolTestMain_t {
+struct qt_meta_stringdata_GlWndMain_t {
     QByteArrayData data[1];
-    char stringdata0[13];
+    char stringdata0[10];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
-    qptrdiff(offsetof(qt_meta_stringdata_ToolTestMain_t, stringdata0) + ofs \
+    qptrdiff(offsetof(qt_meta_stringdata_GlWndMain_t, stringdata0) + ofs \
         - idx * sizeof(QByteArrayData)) \
     )
-static const qt_meta_stringdata_ToolTestMain_t qt_meta_stringdata_ToolTestMain = {
+static const qt_meta_stringdata_GlWndMain_t qt_meta_stringdata_GlWndMain = {
     {
-QT_MOC_LITERAL(0, 0, 12) // "ToolTestMain"
+QT_MOC_LITERAL(0, 0, 9) // "GlWndMain"
 
     },
-    "ToolTestMain"
+    "GlWndMain"
 };
 #undef QT_MOC_LITERAL
 
-static const uint qt_meta_data_ToolTestMain[] = {
+static const uint qt_meta_data_GlWndMain[] = {
 
  // content:
        7,       // revision
@@ -52,7 +52,7 @@ static const uint qt_meta_data_ToolTestMain[] = {
        0        // eod
 };
 
-void ToolTestMain::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
+void GlWndMain::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
 {
     Q_UNUSED(_o);
     Q_UNUSED(_id);
@@ -60,26 +60,26 @@ void ToolTestMain::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id
     Q_UNUSED(_a);
 }
 
-const QMetaObject ToolTestMain::staticMetaObject = {
-    { &QGLWidget::staticMetaObject, qt_meta_stringdata_ToolTestMain.data,
-      qt_meta_data_ToolTestMain,  qt_static_metacall, Q_NULLPTR, Q_NULLPTR}
+const QMetaObject GlWndMain::staticMetaObject = {
+    { &QGLWidget::staticMetaObject, qt_meta_stringdata_GlWndMain.data,
+      qt_meta_data_GlWndMain,  qt_static_metacall, Q_NULLPTR, Q_NULLPTR}
 };
 
 
-const QMetaObject *ToolTestMain::metaObject() const
+const QMetaObject *GlWndMain::metaObject() const
 {
     return QObject::d_ptr->metaObject ? QObject::d_ptr->dynamicMetaObject() : &staticMetaObject;
 }
 
-void *ToolTestMain::qt_metacast(const char *_clname)
+void *GlWndMain::qt_metacast(const char *_clname)
 {
     if (!_clname) return Q_NULLPTR;
-    if (!strcmp(_clname, qt_meta_stringdata_ToolTestMain.stringdata0))
-        return static_cast<void*>(const_cast< ToolTestMain*>(this));
+    if (!strcmp(_clname, qt_meta_stringdata_GlWndMain.stringdata0))
+        return static_cast<void*>(const_cast< GlWndMain*>(this));
     return QGLWidget::qt_metacast(_clname);
 }
 
-int ToolTestMain::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
+int GlWndMain::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
 {
     _id = QGLWidget::qt_metacall(_c, _id, _a);
     if (_id < 0)

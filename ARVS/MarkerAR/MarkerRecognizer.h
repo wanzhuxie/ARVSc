@@ -1,13 +1,13 @@
 #ifndef __MARKER_RECOGNIZER_H__
 #define __MARKER_RECOGNIZER_H__
 
-#include <opencv2\core\core.hpp>
-#include <vector>
-#include <opencv2\imgproc\imgproc.hpp>
-#include <opencv2\calib3d\calib3d.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <vector>
 #include <math.h>
 #include <string>
 #include <sstream>
@@ -19,10 +19,10 @@ class Marker
 public:
 	int m_id;
 	std::vector<cv::Point2f> m_corners;
-	// c0------c3
-	// |				|
-	// |				|
-	// c1------c2
+	// 0-----3
+	// |			|
+	// |			|
+	// 1-----2
 
 public:
 	Marker();
@@ -43,14 +43,12 @@ private:
 	void markerRecognize(cv::Mat& img_gray, std::vector<Marker>& possible_markers, std::vector<Marker>& final_markers);
 	void markerRefine(cv::Mat& img_gray, std::vector<Marker>& final_markers);
 	cv::Mat bitMatrixRotate(cv::Mat& bit_matrix);
-	int hammingDistance(cv::Mat& bit_matrix);
-	int bitMatrixToId(cv::Mat& bit_matrix);
 
 	string _picFileDir;//中间如果输出，输出的位置
 
 public:
-	string GetExportPicFolder(){return _picFileDir;}
 	MarkerRecognizer();
+	string GetExportPicFolder(){return _picFileDir;}
 	int update(cv::Mat& image_gray, int min_size, int min_side_length = 10);
 	std::vector<Marker>& getMarkers();
 	void drawCorners(cv::Mat& image, cv::Scalar color, float thickness);

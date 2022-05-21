@@ -29,7 +29,7 @@ public:
 private:
 	bool _IsRunning;
 	Ui::MainWidget ui;
-	ToolTestMain*pSWIEETool;
+	GlWndMain*pARTool;
 	QPushButton*pPushButton1;
 	QPushButton*pPushButton2;
 	QPushButton*pPushButton3;
