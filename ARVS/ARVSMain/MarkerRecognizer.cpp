@@ -8,7 +8,7 @@
 #include <QPoint>
 #include <QDir>
 #include <QTimer>
-#include <iostream>  
+#include <iostream>
 #include <QWidget>
 using std::cout;
 using std::endl;
