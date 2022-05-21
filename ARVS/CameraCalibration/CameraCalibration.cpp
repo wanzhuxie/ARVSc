@@ -10,12 +10,12 @@ using namespace std;
 
 void main() 
 {
-	ifstream fin("Data\\calibdata.txt"); /* 标定所用图像文件的路径 */
-	ofstream fout("Data\\result.txt");  /* 保存标定结果的文件 */	
+	ifstream fin("Data\\calibdata.txt"); //Img data
+	ofstream fout("Data\\result.txt");  //Redult data	
 	//读取每一幅图像，从中提取出角点，然后对角点进行亚像素精确化	
 	cout<<"开始提取角点………………"<<endl;
-	int image_count=0;  /* 图像数量 */
-	Size image_size;  /* 图像的尺寸 */
+	int image_count=0;
+	Size image_size;  
 	Size board_size = Size(7,7); //注意是黑白方块的交界点，如方块为8X8，则交点数为7X7
 	vector<Point2f> image_points_buf;  /* 缓存每幅图像上检测到的角点 */
 	vector<vector<Point2f>> image_points_seq; /* 保存检测到的所有角点 */
@@ -119,9 +119,9 @@ void main()
 	{
 		point_counts.push_back(board_size.width*board_size.height);
 	}	
-	/* 开始标定 */
+	/* Start */
 	calibrateCamera(object_points,image_points_seq,image_size,cameraMatrix,distCoeffs,rvecsMat,tvecsMat,0);
-	cout<<"标定完成！\n";
+	cout<<"calibrate OK！\n";
 	//对标定结果进行评价
 	cout<<"开始评价标定结果………………\n";
 	double total_err = 0.0; /* 所有图像的平均误差的总和 */
