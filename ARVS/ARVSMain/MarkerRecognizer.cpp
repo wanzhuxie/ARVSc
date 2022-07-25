@@ -128,6 +128,7 @@ int MarkerRecognizer::update(Mat& image, int min_size, int min_side_length)
 	image_drawCorners = image_ori.clone();
 
 	cvtColor( image, image_gray, CV_BGR2GRAY );
+	
 	//equalizeHist(image_gray, image_gray);
 
 	//找可能的标记

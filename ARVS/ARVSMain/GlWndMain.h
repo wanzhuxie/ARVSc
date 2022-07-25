@@ -15,6 +15,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include "HandPointsProvider.h"
 using namespace cv;
 
 
@@ -54,67 +55,64 @@ private:
 
 	void loadGLTextures();//载入纹理
 
-	//void keyPressEvent(QKeyEvent *e);//鼠标按下事件处理函数
+	//void keyPressEvent(QKeyEvent *e);//键盘按下事件处理函数
 	void mousePressEvent(QMouseEvent *e);//鼠标单击事件
 	void mouseMoveEvent(QMouseEvent *e);//鼠标移动事件
 	void mouseReleaseEvent(QMouseEvent *e);//鼠标释放事件
 	void wheelEvent(QWheelEvent *e);//鼠标滚轮事件
-	void intrinsicMatrix2ProjectionMatrix(cv::Mat& camera_matrix, float width, float height, float near_plane, float far_plane, float* projection_matrix);
-	void extrinsicMatrix2ModelViewMatrix(cv::Mat& rotation, cv::Mat& translation, float* model_view_matrix);
 
 	bool fullScreen;
-	GLfloat xrot,yrot,zrot;
-	GLfloat stepRotX,stepRotY,stepRotZ;
-	GLfloat moveX, moveY, zoom;
-				 
+	GLfloat _dRotX,_dRotY,_dRotZ;
+	GLfloat _dMoveX, _dMoveY;
+	GLfloat _dZoom;
+
+	GLfloat stepRotX,stepRotY,stepRotZ;//纠错值
+
 	GLuint texture[6];//6个纹理
-	GLuint texturFrame;
 
-	GLfloat sphere_x,sphere_y;
-
-	bool light;
-	bool blend;
+	QPoint lastPos;//鼠标位置
 
 
-	GLuint fogFilter;//选择雾的类型
-	GLuint filter;//储存纹理变量
-	QPoint lastPos;
-
-
-	bool sp;//空格键是否按下
 	bool _bRun;//开始结束
 	bool _bPause;//暂停继续
 	bool _bHyaline;//是否开启透明
 	bool _bFog;//是否开启透明
 	bool _bOpenAR;//是否开启摄像头
 
-	VideoCapture m_video;
 	VideoCapture m_videoFrame;
-
+	Mat mFrame;
+	int _iFrameCount_Video1;
 	//AR方块视频
 	VideoCapture videoOfAR;
 	BOOL bARVidioOK;
+	Mat mFrameForBox;
 
-
-
-	Mat mFrame, mFrameForBox;
-
-	vector<cv::Point3f> m_corners_3d;
+	//标记角点
+	vector<cv::Point3f> _mMarkerCorners;
 
 	cv::Mat m_camera_matrix;
 	cv::Mat m_dist_coeff;
 	float m_projection_matrix[16];
 	float m_model_view_matrix[16];
 
-	cv::Mat m_img_gray;
-	cv::Mat m_img_color;
-	cv::Mat mFrame_gray;
-	MarkerRecognizer m_recognizer;
+	MarkerRecognizer m_recognizer;//标记识别器
 
-	vector<Point3f> g_bgVertices;
+	Point3D _mLastPos;//手势位置
+	int _iLastSumZ;
+	HandPointsProvider _handPointsCls;
 
-	vector<QPointF> m_vecHandPos;
-	qreal m_HandDia;
+	int _iFrontViewIndex;//123456
+
+	enum OpState
+	{
+		Initial,//尚未通过手势控制
+		FrontView,//正视
+		Adapting,//正在调整到正视中
+		Adjustment//手调
+	};
+	OpState _CurState;
+
+	bool _bCreatedArBox;
 };
 
 #endif // GlWndMain_H

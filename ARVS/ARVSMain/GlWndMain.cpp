@@ -21,13 +21,634 @@
 #include <time.h>
 #include <io.h>
 #include <QPoint>
-#include <QPoint>
+#include <algorithm>
 
 using namespace std;
 
 
 float dARBoxWidth=0.4;
 
+
+
+GlWndMain::GlWndMain(QWidget *parent)
+	: QGLWidget(parent)
+	,_bRun(false)
+	,_bPause(false)
+	,_bHyaline(false)
+	,_bFog(false)
+	,_bOpenAR(true)
+	,_CurState(OpState::Initial)
+	,_bCreatedArBox(false)
+	,_iLastSumZ(0)
+{
+
+	bARVidioOK=FALSE;
+	videoOfAR=VideoCapture("Data/video.mp4");
+	if (videoOfAR.isOpened())
+	{
+		bARVidioOK=true;
+		_iFrameCount_Video1=videoOfAR.get(CV_CAP_PROP_FRAME_COUNT);
+	}
+	else
+	{
+		bARVidioOK=false;
+	}
+
+	_dRotX = _dRotY = _dRotZ = 0;
+	stepRotX=0;
+	stepRotY=0;
+	stepRotZ=0;
+
+	_dMoveX=_dMoveY=0;
+	_dZoom = -10.0;
+	fullScreen = false;
+
+	if (fullScreen)
+	{
+		showFullScreen();
+	}
+	startTimer(5);
+
+	//手坐标
+	if (!_handPointsCls.Init())
+	{
+		cout<<"error on _handPointsCls.Init"<<endl;
+		return ;
+	}
+
+}
+GlWndMain::~GlWndMain()
+{
+	_handPointsCls.Close();
+}
+void GlWndMain::initializeGL()
+{
+
+	m_videoFrame=VideoCapture(0);
+	//m_videoFrame=VideoCapture(1);
+
+	loadGLTextures();//先载入纹理
+	glEnable(GL_TEXTURE_2D);//启用纹理
+	glEnable(GL_COLOR_MATERIAL);//可以用颜色来帖纹理
+	glShadeModel(GL_SMOOTH);//阴影平滑
+	glClearColor(1,1,1,0.5);//设置清除屏幕时所使用的颜色
+
+	glClearDepth(1.0);//设置深度缓存
+	glEnable(GL_DEPTH_TEST);//启用深度测试
+	glDepthFunc(GL_LEQUAL);//所做深度测试的类型
+
+	glHint(GL_PERSPECTIVE_CORRECTION_HINT,GL_NICEST);//投影修正
+	glPolygonMode(GL_BACK,GL_FILL);//背景
+	glPolygonMode(GL_FRONT,GL_FILL);//前景
+
+	//设置光源
+	GLfloat lightAmbient[4] = {0.5,0.5,0.5,1.0};
+	GLfloat lightDiffuse[4] = {1.0,1.0,1.0,1.0};
+	GLfloat lightPosition[4] = {0.0,0.0,2.0,1.0};
+	//雾的设定//三种雾的效果,依次递进
+	GLuint fogMode[3] = {GL_EXP,GL_EXP2,GL_LINEAR};
+	GLfloat fogColor[4] = {1,1,1,0.3};
+
+	//灯
+	glLightfv(GL_LIGHT1,GL_AMBIENT,lightAmbient);
+	glLightfv(GL_LIGHT1,GL_DIFFUSE,lightDiffuse);
+	glLightfv(GL_LIGHT1,GL_POSITION,lightPosition);
+	glEnable(GL_LIGHT1);
+
+	//雾
+	glFogi(GL_FOG_MODE,fogMode[0]);
+	glFogfv(GL_FOG_COLOR,fogColor);
+	glFogf(GL_FOG_DENSITY,0.1);//雾的浓度
+	glHint(GL_FOG_HINT,GL_FASTEST);//雾的渲染方式，GL_DONT_CARE不关心建议值，GL_NICEST极棒的，每一像素渲染，GL_FASTEST对每一顶点渲染，速度快
+	glFogf(GL_FOG_START, 1);//雾离屏幕的距离
+	glFogf(GL_FOG_END, 5.0);
+
+
+	//标记角点
+	_mMarkerCorners.push_back(Point3f(-0.5f, -0.5f, 0));
+	_mMarkerCorners.push_back(Point3f(-0.5f,  0.5f, 0));
+	_mMarkerCorners.push_back(Point3f( 0.5f,  0.5f, 0));
+	_mMarkerCorners.push_back(Point3f( 0.5f, -0.5f, 0));
+
+
+	////通过相机标定确定的参数，立方体与标记有偏差，不确定是不是由于标定数据引起
+	//float mCameraMatrix[] = 
+	//{
+	//	590.7319		,0						,292.9710,
+	//	0					, 619.0881		,202.5625,
+	//	0					,0						,1
+	//};
+	//float dist_coeff[] = {0.1095483732100013, 0.005921985694402154, -0.02522667923131416, -0.0171742783898786, -0.1891767195416431};
+	
+	////20220626新数据
+	//float mCameraMatrix[] = 
+	//{
+	//	621.6733		,0						,301.8697,
+	//	0					, 596.7352		,223.5491,
+	//	0					,0						,1
+	//};
+	//float dist_coeff[] = {0.2050844086865027, -1.253387945124429, -0.009926487596546369, -0.006799737561947785, 5.45488965637716};
+
+
+	//外部摄像头参数
+	float mCameraMatrix[] = 
+	{
+		508.3018		,0						,300.1497,
+		0					, 504.5175		, 264.5351,
+		0					,0						,1
+	};
+	float dist_coeff[] = {-0.4172170641396942, -0.1135454666162299, -0.0009781100036345459, -0.006095536879777572, 0.7763703887603729};
+
+
+	//构造3x3列的mat
+	m_camera_matrix = Mat(3, 3, CV_32FC1, mCameraMatrix).clone();	
+	//构造1x4列的mat
+	m_dist_coeff = Mat(1, 5, CV_32FC1, dist_coeff).clone();
+
+}
+void GlWndMain::resizeGL(int w, int h)
+{
+
+	if (h==0)//防止高为0
+	{
+		h=1;
+	}
+	glViewport(0,0,(GLint)w,(GLint)h);//重置当前的视口
+	glMatrixMode(GL_PROJECTION);//选择投影矩阵
+	glLoadIdentity();//重置投影矩阵
+	gluPerspective(45, (GLfloat)w/(GLfloat)h,0.1,300);//建立透视投影矩阵
+	//gluOrtho2D(0, w, 0, h);
+	glMatrixMode(GL_MODELVIEW);//选择模型观察矩阵
+	glLoadIdentity();//重置模型观察矩阵
+
+
+}
+void GlWndMain::paintGL()
+{
+	int iStartTime=GetSysTime_number();
+
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+
+	bool bAppearNewMarker=false;
+	if (1)
+	{
+		int width=this->width();
+		int height=this->height();
+		QImage buf, mTex;
+		m_videoFrame>>mFrame ; 
+
+		buf = QImage((const unsigned char*)mFrame.data, mFrame.cols, mFrame.rows, mFrame.cols * mFrame.channels(), QImage::Format_RGB888);
+		mTex = QGLWidget::convertToGLFormat(buf);
+		glLoadIdentity();
+		//glTranslatef(0, 0, -200);
+		glPixelZoom((GLfloat)width/mTex.width(),(GLfloat)height/mTex.height());
+		glDrawPixels(mTex.width(),mTex.height(),GL_RGBA,GL_UNSIGNED_BYTE, mTex.bits());
+		glClear(GL_DEPTH_BUFFER_BIT);
+
+		if(_bOpenAR && mFrame.data!=NULL)
+		{
+			if (m_recognizer.update(mFrame, 100 , 10 )>0)
+			{
+				float width=640;float height=480;float near_plane=0.1;float far_plane=100;
+				{
+					float f_x = m_camera_matrix.at<float>(0,0);
+					float f_y = m_camera_matrix.at<float>(1,1);
+
+					float c_x = m_camera_matrix.at<float>(0,2);
+					float c_y = m_camera_matrix.at<float>(1,2);
+					/*
+					w近剪裁面的宽度
+					h近剪裁面的高度
+					n近剪裁面距离摄像机的距离
+					f远剪裁面距离摄像机的距离
+					*/
+					m_projection_matrix[0] = 2*f_x/width;
+					m_projection_matrix[1] = 0.0f;
+					m_projection_matrix[2] = 0.0f;
+					m_projection_matrix[3] = 0.0f;
+					m_projection_matrix[4] = 0.0f;
+					m_projection_matrix[5] = 2*f_y/height;
+					m_projection_matrix[6] = 0.0f;
+					m_projection_matrix[7] = 0.0f;
+					m_projection_matrix[8] = 1.0f - 2*c_x/width;
+					m_projection_matrix[9] = 2*c_y/height - 1.0f;
+					m_projection_matrix[10] = -(far_plane + near_plane)/(far_plane - near_plane);
+					m_projection_matrix[11] = -1.0f;
+					m_projection_matrix[12] = 0.0f;
+					m_projection_matrix[13] = 0.0f;
+					m_projection_matrix[14] = -2.0f*far_plane*near_plane/(far_plane - near_plane);
+					m_projection_matrix[15] = 0.0f;
+
+				}
+				glMatrixMode(GL_PROJECTION);
+				glLoadIdentity();//重置当前指定的矩阵为单位矩阵
+				//glMultMatrixf(m_projection_matrix);
+				glLoadMatrixf(m_projection_matrix);
+
+				glMatrixMode(GL_MODELVIEW);
+				glLoadIdentity();
+				glEnable(GL_DEPTH_TEST);
+				glShadeModel(GL_SMOOTH); //some model / light stuff
+				vector<Marker>& markers = m_recognizer.getMarkers();
+				Mat rotation, translation;
+				for (int i = 0; i < markers.size(); ++i)
+				{
+					//markers[i].estimateTransformToCamera(_mMarkerCorners, m_camera_matrix, m_dist_coeff, r, t);
+					Mat rot_vec;
+					bool res = solvePnP(_mMarkerCorners,		//i世界坐标系下的控制点的坐标
+						markers[i].m_corners,							//i图像坐标系下对应的控制点的坐标
+						m_camera_matrix,								//i相机内参
+						m_dist_coeff,									//i相机畸变
+						rot_vec,										//o旋转向量
+						translation);											//o平移向量
+
+					Rodrigues(rot_vec, rotation);				//旋转向量变为旋转矩阵
+					//cout<<"translation..."<<endl<<translation<<endl;
+					//cout<<"rot_vec..."<<endl<<rot_vec<<endl;
+					//cout<<"rotation..."<<endl<<rotation<<endl;
+
+					//绕X轴旋转180度，从OpenCV坐标系变换为OpenGL坐标系
+					static double d[] = 
+					{
+						1, 0, 0,
+						0, -1, 0,
+						0, 0, -1
+					};
+					Mat_<double> rx(3, 3, d);
+					rotation = rx*rotation;
+					translation = rx*translation;
+
+
+					m_model_view_matrix[0] =		rotation.at<double>(0,0);
+					m_model_view_matrix[1] =		rotation.at<double>(1,0);
+					m_model_view_matrix[2] =		rotation.at<double>(2,0);
+					m_model_view_matrix[3] =		0.0f;
+
+					m_model_view_matrix[4] =		rotation.at<double>(0,1);
+					m_model_view_matrix[5] =		rotation.at<double>(1,1);
+					m_model_view_matrix[6] =		rotation.at<double>(2,1);
+					m_model_view_matrix[7] =		0.0f;
+
+					m_model_view_matrix[8] =		rotation.at<double>(0,2);
+					m_model_view_matrix[9] =		rotation.at<double>(1,2);
+					m_model_view_matrix[10] =		rotation.at<double>(2,2);
+					m_model_view_matrix[11] =		0.0f;
+
+					m_model_view_matrix[12] =		translation.at<double>(0, 0)+stepRotX;
+					m_model_view_matrix[13] =		translation.at<double>(1, 0)+stepRotY;
+					m_model_view_matrix[14] =		translation.at<double>(2, 0)+stepRotZ;
+					m_model_view_matrix[15] =		1.0f;
+
+					
+					glLoadMatrixf(m_model_view_matrix);////把当前矩阵GL_MODELVIEW的16个值设置为指定的值
+
+					DrawARBox();
+					
+					bAppearNewMarker=true;
+
+					cout<<"更新视图耗时ms："<<GetSysTime_number()-iStartTime<<endl;
+
+
+					string strPicExportFolder=m_recognizer.GetExportPicFolder();
+					if (strPicExportFolder!=""&&_access(strPicExportFolder.c_str() , 0)==0)
+					{
+						QPixmap::grabWindow(this->winId()).save((strPicExportFolder+"\\result.png").c_str(),"png");
+					}
+				}
+			}
+		}
+
+	}
+
+
+	//if (!_bRun){	return;}
+
+	if (!_bPause)//Pause
+	{
+		_dRotX += stepRotX;
+		_dRotY += stepRotY;
+		_dRotZ += stepRotZ;
+	}
+
+	glLoadIdentity();
+	glTranslatef(_dMoveX, _dMoveY, _dZoom);
+	glRotatef(_dRotX,1,0,0);
+	glRotatef(_dRotY,0,1,0);
+	glRotatef(_dRotZ,0,0,1);
+
+	if (_bFog)
+	{
+		glEnable(GL_FOG);
+	}
+	else
+	{
+		glDisable(GL_FOG);
+	}
+
+	if (_bHyaline)
+	{
+		glColor4f(1,1,0.8,0.8);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_BLEND );
+		glDepthMask(FALSE);
+	}
+	else
+	{
+		glColor4f(1,1,1,1);
+	}
+
+	//DrawMainBox();
+
+	//如果已经创建过立方体&&此时没有标记，就沿用原来的位置
+	if (_bCreatedArBox && !bAppearNewMarker)
+	{
+		if (_CurState==OpState::Initial)
+		{
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();//重置当前指定的矩阵为单位矩阵
+			glLoadMatrixf(m_projection_matrix);
+
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+			glEnable(GL_DEPTH_TEST);
+			glShadeModel(GL_SMOOTH); //some model / light stuff
+
+			glLoadMatrixf(m_model_view_matrix);////把当前矩阵GL_MODELVIEW的16个值设置为指定的值
+		}
+
+		DrawARBox();
+	}
+	
+
+	if (_bHyaline)
+	{
+		glDepthMask(TRUE);
+		glDisable(GL_BLEND);
+	}
+
+
+}
+
+//重绘
+void GlWndMain::timerEvent(QTimerEvent *)
+{
+
+	//获取当前屏幕像素
+	int cxScreen = GetSystemMetrics (SM_CXSCREEN) ;  // wide
+	int cyScreen = GetSystemMetrics (SM_CYSCREEN) ;  // high
+
+	//借助MediaPip的Python版本完成手部关键点识别
+	Mat mFrame;
+	m_videoFrame>>mFrame ; 
+	if (_access("Data\\CreatedImage" , 0)==0)
+	{
+		rename("Data\\CreatedImage" , "Data\\CreatingImage");
+	}
+	cv::resize(mFrame,mFrame,cv::Size(320,240));
+	//cvtColor(mFrame,mFrame,CV_BGR2GRAY);
+	imwrite("Data\\TempImg.jpg",mFrame);
+	if (_access("Data\\CreatingImage" , 0)==0)
+	{
+		rename("Data\\CreatingImage" , "Data\\CreatedImage");
+	}
+
+	vector<Point3D> vecAllHandPoints=_handPointsCls.GetAllHandPoints();
+	if(_handPointsCls.GetHandCount()==0)
+	{
+		updateGL();
+		return;
+	}
+
+	Point3D mTipPos_img=_handPointsCls.GetTipOfIndexFinger(false);
+	if (mTipPos_img.X<0||mTipPos_img.Y<0)
+	{
+		return;
+	}
+	std::string vecFingerState=_handPointsCls.GetFingerState(false);
+	cout<<"FingerState: "<<vecFingerState<<endl;
+
+	Point3D mTipPos;
+	{
+		//转换到屏幕坐标
+		//图像[640,480]中有效区域[140,500][100,380]，映射到屏幕上的区域[0,cxScreen][0,cyScreen]
+		int iImgRange_Xmin=100;
+		int iImgRange_Xmax=540;
+		int iImgRange_Ymin=110;
+		int iImgRange_Ymax=360;
+		int iRangeWidth=iImgRange_Xmax-iImgRange_Xmin;
+		int iRangeHight=iImgRange_Ymax-iImgRange_Ymin;
+
+		mTipPos.X=(mTipPos_img.X-iImgRange_Xmin)*cxScreen/iRangeWidth;
+		mTipPos.Y=(mTipPos_img.Y-iImgRange_Ymin)*cyScreen/iRangeHight;
+		if(mTipPos.X <0)
+			mTipPos.X=0;
+		if (mTipPos.X>cxScreen)
+			mTipPos.X=cxScreen;
+		if(mTipPos.Y <0)
+			mTipPos.Y=0;
+		if (mTipPos.Y>cyScreen)
+			mTipPos.Y=cyScreen;
+	}
+
+	Point3D mMousePos;
+	mMousePos.X = _mLastPos.X + (mTipPos.X - _mLastPos.X) / 5;
+	mMousePos.Y = _mLastPos.Y + (mTipPos.Y - _mLastPos.Y) / 5;
+
+	//删除微小移动误差
+	float fDiff=mMousePos.DistanceTo(_mLastPos);
+	//cout<<"error Diff:"<<fDiff<<endl;
+	//if (fDiff<3)
+	//{
+	//	return;
+	//}
+
+	GLfloat dx = GLfloat(mMousePos.X-_mLastPos.X)/width();
+	GLfloat dy = GLfloat(mMousePos.Y-_mLastPos.Y)/height();
+	_mLastPos=mMousePos;
+
+	int iSumZ=0;
+	for(int a=0;a<vecAllHandPoints.size();a++)
+	{
+		iSumZ+=vecAllHandPoints[a].Z;
+	}
+
+	if(_iLastSumZ!=0)
+	{
+		double dZoomDiff=double(iSumZ-_iLastSumZ)/100;
+		if (abs(dZoomDiff)>0.05)
+		{
+			_dZoom-=dZoomDiff;
+			if(_dZoom>-2) _dZoom=-2;
+			if(_dZoom<-12) _dZoom=-12;
+		}
+	}
+	_iLastSumZ=iSumZ;
+
+	//状态变迁
+	if (vecFingerState=="00000")
+	{
+		if (_bPause==true)
+		{
+			return;
+		}
+		_bPause=true;
+
+		if (_CurState==OpState::Initial)
+		{
+			_CurState=OpState::FrontView;
+		}
+		else if (_CurState==OpState::Adjustment)
+		{
+			_CurState=OpState::FrontView;
+		}
+		else if (_CurState==OpState::FrontView)
+		{
+			_CurState=OpState::Adjustment;
+		}
+		return;
+	}
+	else
+	{
+		_bPause=false;
+
+		cout<<_CurState<<endl;
+
+		//FrontView
+		if (_CurState==OpState::Initial)
+		{
+			_CurState=OpState::FrontView;
+		}
+		if (_CurState==OpState::FrontView)
+		{
+			_dMoveX =0;
+			_dMoveY =0;
+
+			//thump, index finger
+			if (vecFingerState=="01000")
+			{
+				_dRotX=0;
+				_dRotY=0;
+				_iFrontViewIndex=1;
+			}
+			else	if (vecFingerState=="01100")
+			{
+				_dRotX=90;
+				_dRotY=0;
+				_iFrontViewIndex=2;
+			}
+			else	if (vecFingerState=="01110")
+			{
+				_dRotX=180;
+				_dRotY=0;
+				_iFrontViewIndex=3;
+			}
+			else	if (vecFingerState=="01111")
+			{
+				_dRotX=270;
+				_dRotY=0;
+				_iFrontViewIndex=4;
+			}
+			else	if (vecFingerState=="11111")
+			{
+				_dRotX=0;
+				_dRotY=90;
+				_iFrontViewIndex=5;
+			}
+			else	if (vecFingerState=="10001")
+			{
+				_dRotX=0;
+				_dRotY=-90;
+				_iFrontViewIndex=6;
+			}
+	
+			//if (_iFrontViewIndex>=1&&_iFrontViewIndex<=6)
+			//{
+			//	_CurState=OpState::Adapting;
+			//}
+		}
+		else	if (_CurState==OpState::Adjustment)
+		{
+			//不是正视
+			_iFrontViewIndex=0;
+
+			if (vecFingerState=="01100")
+			{
+				_dMoveX += dx*5;
+				_dMoveY -= dy*5;
+			}
+			else	if (vecFingerState=="01110")
+			{
+				_dRotX -= dy*100;
+				_dRotY += dx*100;
+			}
+			//else	if (vecFingerState=="01111")
+			//{
+			//	GLfloat zValue = dx+(-dy);
+			//	_dZoom += zValue*2;
+			//}
+
+			//if (_dZoom<0.1)							_dZoom=0.1;
+			//if (_dZoom>1.0)							_dZoom = 1.0;
+			//if (_dMoveX<0)							_dMoveX=0;
+			//if (_dMoveX>width())				_dMoveX=width();
+			//if (_dMoveY<0)							_dMoveY=0;
+			//if ((-_dMoveY)>height())		_dMoveY=- height();
+			//if (_dRotX>360)							_dRotX=int(_dRotX)%360;
+			//if (_dRotX<-360)						_dRotX=int(_dRotX)%360;
+			//if (_dRotY>360)							_dRotY=int(_dRotY)%360;
+			//if (_dRotY<-360)						_dRotY=int(_dRotY)%360;
+		}
+	}
+
+	updateGL();
+}
+//鼠标单击事件
+void GlWndMain::mousePressEvent(QMouseEvent *e)
+{
+	setCursor(Qt::OpenHandCursor);
+	lastPos = e->pos();
+}
+void GlWndMain::mouseReleaseEvent(QMouseEvent *e)
+{
+	setCursor(Qt::ArrowCursor);
+	lastPos = e->pos();
+}
+void GlWndMain::mouseMoveEvent(QMouseEvent *e)
+{
+	GLfloat dx = GLfloat(e->x()-lastPos.x())/width();
+	GLfloat dy = GLfloat(e->y()-lastPos.y())/height();
+	lastPos = e->pos();
+	if (e->buttons()&Qt::LeftButton)
+	{
+		_dRotX -= dy*50;
+		_dRotY += dx*50;
+		updateGL();
+	}
+	else if (e->buttons()&Qt::RightButton)
+	{
+		_dRotX -= dy*200;
+		_dRotY += dx*200;
+		updateGL();
+	}
+	else if (e->buttons()&Qt::MiddleButton)
+	{
+		_dMoveX += dx*5;
+		_dMoveY -= dy*5;
+		updateGL();
+	}
+}
+//滚轮事件
+void GlWndMain::wheelEvent(QWheelEvent *e)
+{
+	GLfloat zValue = e->delta();
+	_dZoom += zValue*0.005;
+	if (_dZoom>1.0)
+	{
+		_dZoom = 1.0;
+	}
+	updateGL();
+}
 
 void GlWndMain::loadGLTextures()
 {
@@ -61,11 +682,20 @@ void GlWndMain::DrawARBox()
 	{
 		GLuint videoTextur;
 		glGenTextures(1, &videoTextur);
+		if(videoOfAR.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video1)
+		{
+			videoOfAR.set(CV_CAP_PROP_POS_FRAMES, 0);
+		}
+
 		videoOfAR>>mFrameForBox ; 
-		cvtColor(mFrameForBox, mFrameForBox, CV_BGR2RGB);
+		//cvtColor(mFrameForBox, mFrameForBox, CV_BGR2RGB);
 		QImage buf2, tex;
 		//将Mat类型转换成QImage
 		buf2 = QImage((const unsigned char*)mFrameForBox.data, mFrameForBox.cols, mFrameForBox.rows, mFrameForBox.cols * mFrameForBox.channels(), QImage::Format_RGB888);
+		if (buf2.isNull())
+		{
+			return;
+		}
 		tex = QGLWidget::convertToGLFormat(buf2);
 		glBindTexture(GL_TEXTURE_2D, videoTextur);//建立一个绑定到目标纹理的纹理
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -197,7 +827,7 @@ void GlWndMain::DrawARBox()
 		glEnd();
 	}
 
-
+	_bCreatedArBox=true;
 }
 void GlWndMain::DrawMainBox()
 {
@@ -258,453 +888,6 @@ void GlWndMain::DrawMainBox()
 
 }
 
-
-GlWndMain::GlWndMain(QWidget *parent)
-	: QGLWidget(parent)
-	,_bRun(false)
-	,_bPause(false)
-	,_bHyaline(false)
-	,_bFog(false)
-	,_bOpenAR(true)
-
-{
-
-	bARVidioOK=FALSE;
-	videoOfAR=VideoCapture("Data/video.mp4");
-	if (videoOfAR.isOpened())
-	{
-		bARVidioOK=true;
-	}
-	else
-	{
-		bARVidioOK=false;
-	}
-
-	xrot = yrot = zrot = 0;
-	stepRotX=0;
-	stepRotY=0;
-	stepRotZ=0;
-
-	moveX=moveY=0;
-	zoom = -10.0;
-	fogFilter = 3;
-	light = false;
-	fullScreen = false;
-
-	if (fullScreen)
-	{
-		showFullScreen();
-	}
-	startTimer(5);
-}
-GlWndMain::~GlWndMain()
-{
-}
-void GlWndMain::initializeGL()
-{
-
-	m_videoFrame=VideoCapture(0);
-	//m_videoFrame=VideoCapture(1);
-
-	loadGLTextures();//先载入纹理
-	glEnable(GL_TEXTURE_2D);//启用纹理
-	glEnable(GL_COLOR_MATERIAL);//可以用颜色来帖纹理
-	glShadeModel(GL_SMOOTH);//阴影平滑
-	glClearColor(1,1,1,0.5);//设置清除屏幕时所使用的颜色
-
-	glClearDepth(1.0);//设置深度缓存
-	glEnable(GL_DEPTH_TEST);//启用深度测试
-	glDepthFunc(GL_LEQUAL);//所做深度测试的类型
-
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT,GL_NICEST);//投影修正
-	glPolygonMode(GL_BACK,GL_FILL);//背景
-	glPolygonMode(GL_FRONT,GL_FILL);//前景
-
-	//设置光源
-	GLfloat lightAmbient[4] = {0.5,0.5,0.5,1.0};
-	GLfloat lightDiffuse[4] = {1.0,1.0,1.0,1.0};
-	GLfloat lightPosition[4] = {0.0,0.0,2.0,1.0};
-	//雾的设定//三种雾的效果,依次递进
-	GLuint fogMode[3] = {GL_EXP,GL_EXP2,GL_LINEAR};
-	GLfloat fogColor[4] = {1,1,1,0.3};
-
-	//灯
-	glLightfv(GL_LIGHT1,GL_AMBIENT,lightAmbient);
-	glLightfv(GL_LIGHT1,GL_DIFFUSE,lightDiffuse);
-	glLightfv(GL_LIGHT1,GL_POSITION,lightPosition);
-	glEnable(GL_LIGHT1);
-
-	//雾
-	glFogi(GL_FOG_MODE,fogMode[0]);
-	glFogfv(GL_FOG_COLOR,fogColor);
-	glFogf(GL_FOG_DENSITY,0.1);//雾的浓度
-	glHint(GL_FOG_HINT,GL_FASTEST);//确定雾的渲染方式，GL_DONT_CARE不关心建议值，GL_NICEST极棒的，每一像素渲染，GL_FASTEST对每一顶点渲染，速度快
-	glFogf(GL_FOG_START, 1);//雾离屏幕的距离
-	glFogf(GL_FOG_END, 5.0);
-
-
-
-
-	Point3f corners_3d[] = 
-	{
-		Point3f(-0.5f, -0.5f, 0),
-		Point3f(-0.5f,  0.5f, 0),
-		Point3f( 0.5f,  0.5f, 0),
-		Point3f( 0.5f, -0.5f, 0)
-	};
-
-	////通过相机标定确定的参数，立方体与标记有偏差，不确定是不是由于标定数据引起
-	//float camera_matrix[] = 
-	//{
-	//	590.7319		,0						,292.9710,
-	//	0					, 619.0881		,202.5625,
-	//	0					,0						,1
-	//};
-	//float dist_coeff[] = {0.1095483732100013, 0.005921985694402154, -0.02522667923131416, -0.0171742783898786, -0.1891767195416431};
-	
-	////20220626新数据
-	//float camera_matrix[] = 
-	//{
-	//	621.6733		,0						,301.8697,
-	//	0					, 596.7352		,223.5491,
-	//	0					,0						,1
-	//};
-	//float dist_coeff[] = {0.2050844086865027, -1.253387945124429, -0.009926487596546369, -0.006799737561947785, 5.45488965637716};
-
-
-	//外部摄像头参数
-	float camera_matrix[] = 
-	{
-		508.3018		,0						,300.1497,
-		0					, 504.5175		, 264.5351,
-		0					,0						,1
-	};
-	float dist_coeff[] = {-0.4172170641396942, -0.1135454666162299, -0.0009781100036345459, -0.006095536879777572, 0.7763703887603729};
-
-
-	m_corners_3d = vector<Point3f>(corners_3d, corners_3d + 4);//仅仅限制数量为4
-	//构造3x3列的mat
-	m_camera_matrix = Mat(3, 3, CV_32FC1, camera_matrix).clone();	//Mat构造函数不会拷贝数据，只会将指针指向数据区域，所以对于局部变量内存，需要clone
-	//构造1x4列的mat
-	m_dist_coeff = Mat(1, 5, CV_32FC1, dist_coeff).clone();
-
-}
-void GlWndMain::resizeGL(int w, int h)
-{
-
-	if (h==0)//防止高为0
-	{
-		h=1;
-	}
-	glViewport(0,0,(GLint)w,(GLint)h);//重置当前的视口
-	glMatrixMode(GL_PROJECTION);//选择投影矩阵
-	glLoadIdentity();//重置投影矩阵
-	gluPerspective(45, (GLfloat)w/(GLfloat)h,0.1,300);//建立透视投影矩阵
-	//gluOrtho2D(0, w, 0, h);
-	glMatrixMode(GL_MODELVIEW);//选择模型观察矩阵
-	glLoadIdentity();//重置模型观察矩阵
-
-
-}
-void GlWndMain::paintGL()
-{
-	int iStartTime=GetSysTime_number();
-
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
-
-	if (1)
-	{
-		int width=this->width();
-		int height=this->height();
-		QImage buf, mTex;
-		m_videoFrame>>mFrame ; 
-
-		buf = QImage((const unsigned char*)mFrame.data, mFrame.cols, mFrame.rows, mFrame.cols * mFrame.channels(), QImage::Format_RGB888);
-		mTex = QGLWidget::convertToGLFormat(buf);
-		glLoadIdentity();
-		//glTranslatef(0, 0, -200);
-		glPixelZoom((GLfloat)width/mTex.width(),(GLfloat)height/mTex.height());
-		glDrawPixels(mTex.width(),mTex.height(),GL_RGBA,GL_UNSIGNED_BYTE, mTex.bits());
-		glClear(GL_DEPTH_BUFFER_BIT);
-
-		if(_bOpenAR && mFrame.data!=NULL)
-		{
-			if (m_recognizer.update(mFrame, 100 , 10 )>0)
-			{
-				//intrinsicMatrix2ProjectionMatrix(m_camera_matrix, 640, 480, 0.01f, 100.0f, m_projection_matrix);
-				float width=640;float height=480;float near_plane=0.1;float far_plane=100;
-				{
-					float f_x = m_camera_matrix.at<float>(0,0);
-					float f_y = m_camera_matrix.at<float>(1,1);
-
-					float c_x = m_camera_matrix.at<float>(0,2);
-					float c_y = m_camera_matrix.at<float>(1,2);
-					/*
-					w近剪裁面的宽度
-					h近剪裁面的高度
-					n近剪裁面距离摄像机的距离
-					f远剪裁面距离摄像机的距离
-					*/
-					m_projection_matrix[0] = 2*f_x/width;
-					m_projection_matrix[1] = 0.0f;
-					m_projection_matrix[2] = 0.0f;
-					m_projection_matrix[3] = 0.0f;
-					m_projection_matrix[4] = 0.0f;
-					m_projection_matrix[5] = 2*f_y/height;
-					m_projection_matrix[6] = 0.0f;
-					m_projection_matrix[7] = 0.0f;
-					m_projection_matrix[8] = 1.0f - 2*c_x/width;
-					m_projection_matrix[9] = 2*c_y/height - 1.0f;
-					m_projection_matrix[10] = -(far_plane + near_plane)/(far_plane - near_plane);
-					m_projection_matrix[11] = -1.0f;
-					m_projection_matrix[12] = 0.0f;
-					m_projection_matrix[13] = 0.0f;
-					m_projection_matrix[14] = -2.0f*far_plane*near_plane/(far_plane - near_plane);
-					m_projection_matrix[15] = 0.0f;
-
-				}
-				glMatrixMode(GL_PROJECTION);
-				glLoadIdentity();//重置当前指定的矩阵为单位矩阵
-				//glMultMatrixf(m_projection_matrix);
-				glLoadMatrixf(m_projection_matrix);
-
-				glMatrixMode(GL_MODELVIEW);
-				glLoadIdentity();
-				glEnable(GL_DEPTH_TEST);
-				glShadeModel(GL_SMOOTH); //some model / light stuff
-				vector<Marker>& markers = m_recognizer.getMarkers();
-				Mat rotation, translation;
-				for (int i = 0; i < markers.size(); ++i)
-				{
-					//markers[i].estimateTransformToCamera(m_corners_3d, m_camera_matrix, m_dist_coeff, r, t);
-					Mat rot_vec;
-					bool res = solvePnP(m_corners_3d,		//i世界坐标系下的控制点的坐标
-						markers[i].m_corners,							//i图像坐标系下对应的控制点的坐标
-						m_camera_matrix,								//i相机内参
-						m_dist_coeff,									//i相机畸变
-						rot_vec,										//o旋转向量
-						translation);											//o平移向量
-
-					Rodrigues(rot_vec, rotation);				//旋转向量变为旋转矩阵
-					//cout<<"translation..."<<endl<<translation<<endl;
-					//cout<<"rot_vec..."<<endl<<rot_vec<<endl;
-					//cout<<"rotation..."<<endl<<rotation<<endl;
-
-					//extrinsicMatrix2ModelViewMatrix(rotation, translation, m_model_view_matrix);
-					//绕X轴旋转180度，从OpenCV坐标系变换为OpenGL坐标系
-					static double d[] = 
-					{
-						1, 0, 0,
-						0, -1, 0,
-						0, 0, -1
-					};
-					Mat_<double> rx(3, 3, d);
-					rotation = rx*rotation;
-					translation = rx*translation;
-
-
-					m_model_view_matrix[0] =		rotation.at<double>(0,0);
-					m_model_view_matrix[1] =		rotation.at<double>(1,0);
-					m_model_view_matrix[2] =		rotation.at<double>(2,0);
-					m_model_view_matrix[3] =		0.0f;
-
-					m_model_view_matrix[4] =		rotation.at<double>(0,1);
-					m_model_view_matrix[5] =		rotation.at<double>(1,1);
-					m_model_view_matrix[6] =		rotation.at<double>(2,1);
-					m_model_view_matrix[7] =		0.0f;
-
-					m_model_view_matrix[8] =		rotation.at<double>(0,2);
-					m_model_view_matrix[9] =		rotation.at<double>(1,2);
-					m_model_view_matrix[10] =		rotation.at<double>(2,2);
-					m_model_view_matrix[11] =		0.0f;
-
-					m_model_view_matrix[12] =		translation.at<double>(0, 0)+stepRotX;
-					m_model_view_matrix[13] =		translation.at<double>(1, 0)+stepRotY;
-					m_model_view_matrix[14] =		translation.at<double>(2, 0)+stepRotZ;
-					m_model_view_matrix[15] =		1.0f;
-
-					
-					glLoadMatrixf(m_model_view_matrix);////把当前矩阵GL_MODELVIEW的16个值设置为指定的值
-
-					DrawARBox();
-					
-					cout<<"更新视图耗时ms："<<GetSysTime_number()-iStartTime<<endl;
-
-
-					string strPicExportFolder=m_recognizer.GetExportPicFolder();
-					if (strPicExportFolder!=""&&_access(strPicExportFolder.c_str() , 0)==0)
-					{
-						QPixmap::grabWindow(this->winId()).save((strPicExportFolder+"\\result.png").c_str(),"png");
-					}
-				}
-			}
-		}
-	}
-
-
-	if (!_bRun){	return;}
-
-	if (!_bPause)//Pause
-	{
-		xrot += stepRotX;
-		yrot += stepRotY;
-		zrot += stepRotZ;
-	}
-
-	glLoadIdentity();
-	glTranslatef(moveX, moveY, zoom);
-	glRotatef(xrot,1,0,0);
-	glRotatef(yrot,0,1,0);
-	glRotatef(zrot,0,0,1);
-
-	if (_bFog)
-	{
-		glEnable(GL_FOG);
-	}
-	else
-	{
-		glDisable(GL_FOG);
-	}
-
-	if (_bHyaline)
-	{
-		glColor4f(1,1,0.8,0.8);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glEnable(GL_BLEND );
-		glDepthMask(FALSE);
-	}
-	else
-	{
-		glColor4f(1,1,1,1);
-	}
-
-	DrawMainBox();
-
-	if (_bHyaline)
-	{
-		glDepthMask(TRUE);
-		glDisable(GL_BLEND);
-	}
-
-
-}
-
-//重绘
-void GlWndMain::timerEvent(QTimerEvent *)
-{
-	updateGL();
-}
-//鼠标单击事件
-void GlWndMain::mousePressEvent(QMouseEvent *e)
-{
-	setCursor(Qt::OpenHandCursor);
-	lastPos = e->pos();
-}
-void GlWndMain::mouseReleaseEvent(QMouseEvent *e)
-{
-	setCursor(Qt::ArrowCursor);
-	lastPos = e->pos();
-}
-void GlWndMain::mouseMoveEvent(QMouseEvent *e)
-{
-	GLfloat dx = GLfloat(e->x()-lastPos.x())/width();
-	GLfloat dy = GLfloat(e->y()-lastPos.y())/height();
-	lastPos = e->pos();
-	if (e->buttons()&Qt::LeftButton)
-	{
-		xrot -= dy*50;
-		yrot += dx*50;
-		updateGL();
-	}
-	else if (e->buttons()&Qt::RightButton)
-	{
-		xrot -= dy*200;
-		yrot += dx*200;
-		updateGL();
-	}
-	else if (e->buttons()&Qt::MiddleButton)
-	{
-		moveX += dx*5;
-		moveY -= dy*5;
-		updateGL();
-	}
-}
-//滚轮事件
-void GlWndMain::wheelEvent(QWheelEvent *e)
-{
-	GLfloat zValue = e->delta();
-	zoom += zValue*0.005;
-	if (zoom>1.0)
-	{
-		zoom = 1.0;
-	}
-	updateGL();
-}
-
-void GlWndMain::intrinsicMatrix2ProjectionMatrix(cv::Mat& camera_matrix, float width, float height, float near_plane, float far_plane, float* projection_matrix)
-{
-	float f_x = camera_matrix.at<float>(0,0);
-	float f_y = camera_matrix.at<float>(1,1);
-
-	float c_x = camera_matrix.at<float>(0,2);
-	float c_y = camera_matrix.at<float>(1,2);
-
-	projection_matrix[0] = 2*f_x/width;
-	projection_matrix[1] = 0.0f;
-	projection_matrix[2] = 0.0f;
-	projection_matrix[3] = 0.0f;
-
-	projection_matrix[4] = 0.0f;
-	projection_matrix[5] = 2*f_y/height;
-	projection_matrix[6] = 0.0f;
-	projection_matrix[7] = 0.0f;
-
-	projection_matrix[8] = 1.0f - 2*c_x/width;
-	projection_matrix[9] = 2*c_y/height - 1.0f;
-	projection_matrix[10] = -(far_plane + near_plane)/(far_plane - near_plane);
-	projection_matrix[11] = -1.0f;
-
-	projection_matrix[12] = 0.0f;
-	projection_matrix[13] = 0.0f;
-	projection_matrix[14] = -2.0f*far_plane*near_plane/(far_plane - near_plane);
-	projection_matrix[15] = 0.0f;
-}
-
-void GlWndMain::extrinsicMatrix2ModelViewMatrix(cv::Mat& rotation, cv::Mat& translation, float* model_view_matrix)
-{
-	//绕X轴旋转180度，从OpenCV坐标系变换为OpenGL坐标系
-	static double d[] = 
-	{
-		1, 0, 0,
-		0, -1, 0,
-		0, 0, -1
-	};
-	Mat_<double> rx(3, 3, d);
-
-	rotation = rx*rotation;
-	translation = rx*translation;
-
-	model_view_matrix[0] = rotation.at<double>(0,0);
-	model_view_matrix[1] = rotation.at<double>(1,0);
-	model_view_matrix[2] = rotation.at<double>(2,0);
-	model_view_matrix[3] = 0.0f;
-
-	model_view_matrix[4] = rotation.at<double>(0,1);
-	model_view_matrix[5] = rotation.at<double>(1,1);
-	model_view_matrix[6] = rotation.at<double>(2,1);
-	model_view_matrix[7] = 0.0f;
-
-	model_view_matrix[8] = rotation.at<double>(0,2);
-	model_view_matrix[9] = rotation.at<double>(1,2);
-	model_view_matrix[10] = rotation.at<double>(2,2);
-	model_view_matrix[11] = 0.0f;
-
-	model_view_matrix[12] = translation.at<double>(0, 0);
-	model_view_matrix[13] = translation.at<double>(1, 0);
-	model_view_matrix[14] = translation.at<double>(2, 0);
-	model_view_matrix[15] = 1.0f;
-}
 
 
 void GlWndMain::Run()

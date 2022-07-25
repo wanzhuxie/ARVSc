@@ -28,9 +28,6 @@
     <ClCompile Include="GeneratedFiles\qrc_GlWndMain.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
-    <ClCompile Include="GeneralFunctions.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MarkerRecognizer.h">
@@ -41,9 +38,6 @@
     </ClInclude>
     <ClInclude Include="GeneratedFiles\ui_MainWidget.h">
       <Filter>Generated Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GeneralFunctions.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
