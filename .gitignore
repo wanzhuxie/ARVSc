@@ -30,3 +30,10 @@
 *.exe
 *.out
 *.app
+/ARVS/CameraCalibration/Debug
+/ARVS/CameraCalibration/Release
+/ARVS/ARVSMain/Debug
+/ARVS/ARVSMain/Release
+/ARVS/GeneralFunctions/Debug
+/ARVS/HandPointsProvider/Debug
+/ARVS/MathLibrary/Debug
