@@ -79,8 +79,8 @@ private:
 	bool _bFog;//是否开启透明
 	bool _bOpenAR;//是否开启摄像头
 
-	VideoCapture m_videoFrame;
-	Mat mFrame;
+	VideoCapture _mMainCapture;
+	Mat _mFrameImage;
 	int _iFrameCount_Video1;
 	//AR方块视频
 	VideoCapture videoOfAR;
@@ -100,9 +100,9 @@ private:
 	Point3D _mLastPos;//手势位置
 	int _iLastSumZ;
 	HandPointsProvider _handPointsCls;
-
+	vector<Point3D> _vecAllHandPoints;
 	int _iFrontViewIndex;//123456
-
+	BOOL _bShowHandPoints;
 	enum OpState
 	{
 		Initial,//尚未通过手势控制

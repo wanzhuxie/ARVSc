@@ -40,8 +40,9 @@ GlWndMain::GlWndMain(QWidget *parent)
 	,_CurState(OpState::Initial)
 	,_bCreatedArBox(false)
 	,_iLastSumZ(0)
+	,_bShowHandPoints(true)
 {
-
+	
 	bARVidioOK=FALSE;
 	videoOfAR=VideoCapture("Data/video.mp4");
 	if (videoOfAR.isOpened())
@@ -84,10 +85,9 @@ GlWndMain::~GlWndMain()
 void GlWndMain::initializeGL()
 {
 
-	m_videoFrame=VideoCapture(0);
-	//m_videoFrame=VideoCapture(1);
+	_mMainCapture=VideoCapture(0);
+	//_mMainCapture=VideoCapture(1);
 
-	loadGLTextures();//先载入纹理
 	glEnable(GL_TEXTURE_2D);//启用纹理
 	glEnable(GL_COLOR_MATERIAL);//可以用颜色来帖纹理
 	glShadeModel(GL_SMOOTH);//阴影平滑
@@ -168,6 +168,7 @@ void GlWndMain::initializeGL()
 }
 void GlWndMain::resizeGL(int w, int h)
 {
+	cout<<__FUNCTION__<<endl;
 
 	if (h==0)//防止高为0
 	{
@@ -189,26 +190,40 @@ void GlWndMain::paintGL()
 
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-
 	bool bAppearNewMarker=false;
 	if (1)
 	{
 		int width=this->width();
 		int height=this->height();
-		QImage buf, mTex;
-		m_videoFrame>>mFrame ; 
+		//_mMainCapture>>_mFrameImage ; 
+		
+		if (_bShowHandPoints)
+		{
+			for (int a=0;a<_vecAllHandPoints.size();a++)
+			{
+				int iEachRadius=_vecAllHandPoints[a].Z*0.1;
+				if (iEachRadius<0)
+					iEachRadius=-iEachRadius;
+				iEachRadius+=3;
+				cv::circle(_mFrameImage , Point(_vecAllHandPoints[a].X*2, _vecAllHandPoints[a].Y*2) , iEachRadius , cv::Scalar(200, 100, 100 ,0.5) , CV_FILLED);
+			}
+		}
 
-		buf = QImage((const unsigned char*)mFrame.data, mFrame.cols, mFrame.rows, mFrame.cols * mFrame.channels(), QImage::Format_RGB888);
-		mTex = QGLWidget::convertToGLFormat(buf);
+		//cout<<"circle 耗时ms："<<GetSysTime_number()-iStartTime<<endl;
+
+		QImage buf((const unsigned char*)_mFrameImage.data, _mFrameImage.cols, _mFrameImage.rows, _mFrameImage.cols * _mFrameImage.channels(), QImage::Format_RGB888);
+		QImage mTex = QGLWidget::convertToGLFormat(buf);
+		mTex=mTex.rgbSwapped();
 		glLoadIdentity();
-		//glTranslatef(0, 0, -200);
 		glPixelZoom((GLfloat)width/mTex.width(),(GLfloat)height/mTex.height());
 		glDrawPixels(mTex.width(),mTex.height(),GL_RGBA,GL_UNSIGNED_BYTE, mTex.bits());
+		//glTexImage2D(GL_TEXTURE_2D,0,3,mTex.width(),mTex.height(),0,GL_BGR_EXT,GL_UNSIGNED_BYTE,mTex.bits());
+
 		glClear(GL_DEPTH_BUFFER_BIT);
 
-		if(_bOpenAR && mFrame.data!=NULL)
+		if(_bOpenAR && _mFrameImage.data!=NULL)
 		{
-			if (m_recognizer.update(mFrame, 100 , 10 )>0)
+			if (m_recognizer.update(_mFrameImage, 100 , 10 )>0)
 			{
 				float width=640;float height=480;float near_plane=0.1;float far_plane=100;
 				{
@@ -393,33 +408,32 @@ void GlWndMain::paintGL()
 //重绘
 void GlWndMain::timerEvent(QTimerEvent *)
 {
-
 	//获取当前屏幕像素
 	int cxScreen = GetSystemMetrics (SM_CXSCREEN) ;  // wide
 	int cyScreen = GetSystemMetrics (SM_CYSCREEN) ;  // high
 
 	//借助MediaPip的Python版本完成手部关键点识别
-	Mat mFrame;
-	m_videoFrame>>mFrame ; 
+	_mMainCapture.read(_mFrameImage); 
 	if (_access("Data\\CreatedImage" , 0)==0)
 	{
 		rename("Data\\CreatedImage" , "Data\\CreatingImage");
 	}
-	cv::resize(mFrame,mFrame,cv::Size(320,240));
-	//cvtColor(mFrame,mFrame,CV_BGR2GRAY);
-	imwrite("Data\\TempImg.jpg",mFrame);
+
+	cv::Mat mTransBtidgeImage=_mFrameImage.clone();
+	cv::resize(mTransBtidgeImage,mTransBtidgeImage,cv::Size(320,240));
+	//cvtColor(mTransBtidgeImage,mTransBtidgeImage,CV_BGR2GRAY);
+	imwrite("Data\\TempImg.jpg",mTransBtidgeImage);
 	if (_access("Data\\CreatingImage" , 0)==0)
 	{
 		rename("Data\\CreatingImage" , "Data\\CreatedImage");
 	}
-
-	vector<Point3D> vecAllHandPoints=_handPointsCls.GetAllHandPoints();
+	//Sleep(100);
+	_vecAllHandPoints=_handPointsCls.GetAllHandPoints();
 	if(_handPointsCls.GetHandCount()==0)
 	{
 		updateGL();
 		return;
 	}
-
 	Point3D mTipPos_img=_handPointsCls.GetTipOfIndexFinger(false);
 	if (mTipPos_img.X<0||mTipPos_img.Y<0)
 	{
@@ -468,9 +482,9 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	_mLastPos=mMousePos;
 
 	int iSumZ=0;
-	for(int a=0;a<vecAllHandPoints.size();a++)
+	for(int a=0;a<_vecAllHandPoints.size();a++)
 	{
-		iSumZ+=vecAllHandPoints[a].Z;
+		iSumZ+=_vecAllHandPoints[a].Z;
 	}
 
 	if(_iLastSumZ!=0)
@@ -551,7 +565,7 @@ void GlWndMain::timerEvent(QTimerEvent *)
 			}
 			else	if (vecFingerState=="11111")
 			{
-				_dRotX=0;
+				_dRotX=-90;
 				_dRotY=90;
 				_iFrontViewIndex=5;
 			}
@@ -603,7 +617,8 @@ void GlWndMain::timerEvent(QTimerEvent *)
 
 	updateGL();
 }
-//鼠标单击事件
+
+//鼠标事件
 void GlWndMain::mousePressEvent(QMouseEvent *e)
 {
 	setCursor(Qt::OpenHandCursor);
@@ -638,7 +653,6 @@ void GlWndMain::mouseMoveEvent(QMouseEvent *e)
 		updateGL();
 	}
 }
-//滚轮事件
 void GlWndMain::wheelEvent(QWheelEvent *e)
 {
 	GLfloat zValue = e->delta();
@@ -652,6 +666,8 @@ void GlWndMain::wheelEvent(QWheelEvent *e)
 
 void GlWndMain::loadGLTextures()
 {
+	int iStartTime=GetSysTime_number();
+	cout<<__FUNCTION__<<endl;
 	glGenTextures(6, texture);//创建6个纹理
 	for (int i=0;i<6;i++)
 	{
@@ -667,16 +683,20 @@ void GlWndMain::loadGLTextures()
 			mBuf = dummy;//如果载入不成功，自动生成颜色图片
 		}
 		mTex = QGLWidget::convertToGLFormat(mBuf);//QGLWidget提供的专门转换图片的静态函数
+		mTex=mTex.rgbSwapped();
 		glBindTexture(GL_TEXTURE_2D,texture[i]);
 		glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
 		glTexImage2D(GL_TEXTURE_2D,0,3,mTex.width(),mTex.height(),0,GL_RGBA,GL_UNSIGNED_BYTE,mTex.bits());
-
+		//glTexSubImage2D(GL_TEXTURE_2D,0,3,mTex.width(),mTex.height(),0,GL_RGBA,GL_UNSIGNED_BYTE,mTex.bits());
+		cout<<"更新视图耗时ms："<<GetSysTime_number()-iStartTime<<endl;
+		
 	}
 	glEnable(GL_TEXTURE_2D);
 }
 void GlWndMain::DrawARBox()
-{
+{//glTexImage2D在创建图片纹理时，整体变得很暗，所以先全部使用视频贴图
+	cout<<__FUNCTION__<<endl;
 	//如果加载视频成功，就把视频显示在方块上，否则显示图片数据
 	if(bARVidioOK)
 	{
@@ -711,10 +731,10 @@ void GlWndMain::DrawARBox()
 		glTexCoord2f(1.0f, 1.0f); glVertex3f( dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右上
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的左上
 		glEnd();
-		glDeleteTextures(1, &videoTextur);
+		//glDeleteTextures(1, &videoTextur);
 
 		// 后面
-		glBindTexture(GL_TEXTURE_2D,texture[1]);
+		glBindTexture(GL_TEXTURE_2D,videoTextur);
 		glBegin(GL_QUADS);
 		glNormal3f(0,0,-1);
 		glTexCoord2f(1.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右下
@@ -724,7 +744,7 @@ void GlWndMain::DrawARBox()
 		glEnd();
 
 		// 顶面
-		glBindTexture(GL_TEXTURE_2D, texture[2]);
+		glBindTexture(GL_TEXTURE_2D, videoTextur);
 		glBegin(GL_QUADS);
 		glNormal3f(0,1,0);
 		glTexCoord2f(1.0f, 0.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
@@ -734,7 +754,7 @@ void GlWndMain::DrawARBox()
 		glEnd();
 
 		// 底面
-		glBindTexture(GL_TEXTURE_2D, texture[3]);
+		glBindTexture(GL_TEXTURE_2D, videoTextur);
 		glBegin(GL_QUADS);
 		glNormal3f(0,-1,0);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
@@ -744,7 +764,7 @@ void GlWndMain::DrawARBox()
 		glEnd();
 
 		// 右面
-		glBindTexture(GL_TEXTURE_2D, texture[4]);
+		glBindTexture(GL_TEXTURE_2D, videoTextur);
 		glBegin(GL_QUADS);
 		glNormal3f(1,0,0);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右下
@@ -754,7 +774,7 @@ void GlWndMain::DrawARBox()
 		glEnd();
 
 		// 左面
-		glBindTexture(GL_TEXTURE_2D, texture[5]);
+		glBindTexture(GL_TEXTURE_2D, videoTextur);
 		glBegin(GL_QUADS);
 		glNormal3f(-1,0,0);
 		glTexCoord2f(1.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左下
@@ -762,7 +782,7 @@ void GlWndMain::DrawARBox()
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右上
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
 		glEnd();
-
+		glDeleteTextures(1, &videoTextur);
 	}
 	else
 	{
@@ -831,7 +851,7 @@ void GlWndMain::DrawARBox()
 }
 void GlWndMain::DrawMainBox()
 {
-
+	cout<<__FUNCTION__<<endl;
 	glBindTexture(GL_TEXTURE_2D, texture[0]);
 	glBegin(GL_QUADS);
 	glNormal3f(0,0,1);

@@ -49,7 +49,7 @@ private:
 public:
 	MarkerRecognizer();
 	string GetExportPicFolder(){return _picFileDir;}
-	int update(cv::Mat& image_gray, int min_size, int min_side_length = 10);
+	int update(const cv::Mat& image_gray, int min_size, int min_side_length = 10);
 	std::vector<Marker>& getMarkers();
 	void drawCorners(cv::Mat& image, cv::Scalar color, float thickness);
 };

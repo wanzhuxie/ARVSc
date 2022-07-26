@@ -107,7 +107,7 @@ MarkerRecognizer::MarkerRecognizer()
 	m_marker_coords.push_back(Point2f(giMarkerSize-1, 0));
 }
 
-int MarkerRecognizer::update(Mat& image, int min_size, int min_side_length)
+int MarkerRecognizer::update(const Mat& image, int min_size, int min_side_length)
 {
 	_picFileDir="";
 
