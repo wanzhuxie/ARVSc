@@ -28,12 +28,27 @@ using namespace std;
 
 float dARBoxWidth=0.4;
 
+BOOL GestureEqual(const vector<int>& vecFingerState , const std::string & strTargetState)
+{
+	return FALSE;
+}
 
+std::string ComputeStateSignal(const vector<int>&vecState)
+{
+	std::string strResult;
+	for (int a=0;a<vecState.size();a++)
+	{
+		strResult+=IntToStr(vecState[a]);
+	}
+
+	return strResult;
+}
 
 GlWndMain::GlWndMain(QWidget *parent)
 	: QGLWidget(parent)
 	,_bRun(false)
 	,_bPause(false)
+	,_bKeepState(false)
 	,_bHyaline(false)
 	,_bFog(false)
 	,_bOpenAR(true)
@@ -165,6 +180,9 @@ void GlWndMain::initializeGL()
 	//构造1x4列的mat
 	m_dist_coeff = Mat(1, 5, CV_32FC1, dist_coeff).clone();
 
+	////设置贴图整个窗口会变暗。。。
+	//loadGLTextures();
+
 }
 void GlWndMain::resizeGL(int w, int h)
 {
@@ -197,17 +215,17 @@ void GlWndMain::paintGL()
 		int height=this->height();
 		//_mMainCapture>>_mFrameImage ; 
 		
-		if (_bShowHandPoints)
-		{
-			for (int a=0;a<_vecAllHandPoints.size();a++)
-			{
-				int iEachRadius=_vecAllHandPoints[a].Z*0.1;
-				if (iEachRadius<0)
-					iEachRadius=-iEachRadius;
-				iEachRadius+=3;
-				cv::circle(_mFrameImage , Point(_vecAllHandPoints[a].X*2, _vecAllHandPoints[a].Y*2) , iEachRadius , cv::Scalar(200, 100, 100 ,0.5) , CV_FILLED);
-			}
-		}
+		//if (_bShowHandPoints)
+		//{
+		//	for (int a=0;a<_vecAllHandPoints.size();a++)
+		//	{
+		//		int iEachRadius=_vecAllHandPoints[a].Z*0.1;
+		//		if (iEachRadius<0)
+		//			iEachRadius=-iEachRadius;
+		//		iEachRadius+=3;
+		//		cv::circle(_mFrameImage , Point(_vecAllHandPoints[a].X*2, _vecAllHandPoints[a].Y*2) , iEachRadius , cv::Scalar(200, 100, 100 ,0.5) , CV_FILLED);
+		//	}
+		//}
 
 		//cout<<"circle 耗时ms："<<GetSysTime_number()-iStartTime<<endl;
 
@@ -218,7 +236,6 @@ void GlWndMain::paintGL()
 		glPixelZoom((GLfloat)width/mTex.width(),(GLfloat)height/mTex.height());
 		glDrawPixels(mTex.width(),mTex.height(),GL_RGBA,GL_UNSIGNED_BYTE, mTex.bits());
 		//glTexImage2D(GL_TEXTURE_2D,0,3,mTex.width(),mTex.height(),0,GL_BGR_EXT,GL_UNSIGNED_BYTE,mTex.bits());
-
 		glClear(GL_DEPTH_BUFFER_BIT);
 
 		if(_bOpenAR && _mFrameImage.data!=NULL)
@@ -405,7 +422,8 @@ void GlWndMain::paintGL()
 
 }
 
-//重绘
+//计时回调
+/*
 void GlWndMain::timerEvent(QTimerEvent *)
 {
 	//获取当前屏幕像素
@@ -418,7 +436,7 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	{
 		rename("Data\\CreatedImage" , "Data\\CreatingImage");
 	}
-
+	cv::flip(_mFrameImage,_mFrameImage,1);
 	cv::Mat mTransBtidgeImage=_mFrameImage.clone();
 	cv::resize(mTransBtidgeImage,mTransBtidgeImage,cv::Size(320,240));
 	//cvtColor(mTransBtidgeImage,mTransBtidgeImage,CV_BGR2GRAY);
@@ -440,7 +458,7 @@ void GlWndMain::timerEvent(QTimerEvent *)
 		return;
 	}
 	std::string vecFingerState=_handPointsCls.GetFingerState(false);
-	cout<<"FingerState: "<<vecFingerState<<endl;
+	//cout<<"FingerState: "<<vecFingerState<<endl;
 
 	Point3D mTipPos;
 	{
@@ -472,14 +490,16 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	//删除微小移动误差
 	float fDiff=mMousePos.DistanceTo(_mLastPos);
 	//cout<<"error Diff:"<<fDiff<<endl;
-	//if (fDiff<3)
-	//{
-	//	return;
-	//}
+	if (fDiff<3)
+	{
+		return;
+	}
 
 	GLfloat dx = GLfloat(mMousePos.X-_mLastPos.X)/width();
 	GLfloat dy = GLfloat(mMousePos.Y-_mLastPos.Y)/height();
 	_mLastPos=mMousePos;
+	cout<<"dx"<<dx<<endl;
+	cout<<"dy"<<dy<<endl;
 
 	int iSumZ=0;
 	for(int a=0;a<_vecAllHandPoints.size();a++)
@@ -487,17 +507,17 @@ void GlWndMain::timerEvent(QTimerEvent *)
 		iSumZ+=_vecAllHandPoints[a].Z;
 	}
 
-	if(_iLastSumZ!=0)
-	{
-		double dZoomDiff=double(iSumZ-_iLastSumZ)/100;
-		if (abs(dZoomDiff)>0.05)
-		{
-			_dZoom-=dZoomDiff;
-			if(_dZoom>-2) _dZoom=-2;
-			if(_dZoom<-12) _dZoom=-12;
-		}
-	}
-	_iLastSumZ=iSumZ;
+	//if(_iLastSumZ!=0)
+	//{
+	//	double dZoomDiff=double(iSumZ-_iLastSumZ)/100;
+	//	if (abs(dZoomDiff)>0.05)
+	//	{
+	//		_dZoom-=dZoomDiff;
+	//		if(_dZoom>-2) _dZoom=-2;
+	//		if(_dZoom<-12) _dZoom=-12;
+	//	}
+	//}
+	//_iLastSumZ=iSumZ;
 
 	//状态变迁
 	if (vecFingerState=="00000")
@@ -617,6 +637,292 @@ void GlWndMain::timerEvent(QTimerEvent *)
 
 	updateGL();
 }
+*/
+//计时回调
+void GlWndMain::timerEvent(QTimerEvent *)
+{
+	//获取当前屏幕像素
+	int cxScreen = GetSystemMetrics (SM_CXSCREEN) ;  // wide
+	int cyScreen = GetSystemMetrics (SM_CYSCREEN) ;  // high
+
+	//借助MediaPip的Python版本完成手部关键点识别
+	_mMainCapture.read(_mFrameImage); 
+	if (_access("Data\\CreatedImage" , 0)==0)
+	{
+		rename("Data\\CreatedImage" , "Data\\CreatingImage");
+	}
+	cv::flip(_mFrameImage,_mFrameImage,1);
+	cv::Mat mTransBtidgeImage=_mFrameImage.clone();
+	cv::resize(mTransBtidgeImage,mTransBtidgeImage,cv::Size(320,240));
+	//cvtColor(mTransBtidgeImage,mTransBtidgeImage,CV_BGR2GRAY);
+	imwrite("Data\\TempImg.jpg",mTransBtidgeImage);
+	if (_access("Data\\CreatingImage" , 0)==0)
+	{
+		rename("Data\\CreatingImage" , "Data\\CreatedImage");
+	}
+	//Sleep(100);
+	_vecAllHandPoints=_handPointsCls.GetAllHandPoints();
+	if(_handPointsCls.GetHandCount()==0)
+	{
+		updateGL();
+		return;
+	}
+	Point3D mTipPos_img=_handPointsCls.GetTipOfIndexFinger(false);
+	if (mTipPos_img.X<0||mTipPos_img.Y<0)
+	{
+		return;
+	}
+	vector<int> vecFingerState=_handPointsCls.GetFingerState(false);
+	if (vecFingerState.size()!=5)
+	{
+		return;
+	}
+
+	std::string strCurFingereState=ComputeStateSignal(vecFingerState);
+
+	cout<<vecFingerState[0];
+	cout<<vecFingerState[1];
+	cout<<vecFingerState[2];
+	cout<<vecFingerState[3];
+	cout<<vecFingerState[4];
+	cout<<endl;
+
+	//状态变迁
+	if (strCurFingereState=="00000" || strCurFingereState=="11111")
+	{
+		if (strCurFingereState=="11111"&&_strLastFingerState=="00000")
+		{
+			if (_CurState==OpState::Initial)
+			{
+				cout<<"====Initial=FrontView===="<<endl;
+				_CurState=OpState::FrontView;
+			}
+			else if (_CurState==OpState::FrontView)
+			{
+				cout<<"====FrontView=Move===="<<endl;
+				_CurState=OpState::Move;
+			}
+			else if (_CurState==OpState::Move)
+			{
+				cout<<"====Move=Rotate===="<<endl;
+				_CurState=OpState::Rotate;
+			}
+			else if (_CurState==OpState::Rotate)
+			{
+				cout<<"====Rotate=Zoom===="<<endl;
+				_CurState=OpState::Zoom;
+			}
+			else if (_CurState==OpState::Zoom)
+			{
+				cout<<"====Zoom=FrontView===="<<endl;
+				_CurState=OpState::FrontView;
+			}
+		}
+
+		_strLastFingerState=strCurFingereState;
+	}
+	else
+	{
+		_bKeepState=false;
+
+		//cout<<_CurState<<endl;
+
+		//FrontView
+		if (_CurState==OpState::Initial)
+		{
+			_CurState=OpState::FrontView;
+		}
+		if (_CurState==OpState::FrontView)
+		{
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]!=1
+				&&vecFingerState[3]!=1
+				&&vecFingerState[4]!=1)
+			{
+				_dRotX=0;
+				_dRotY=0;
+				_dRotZ=0;
+				_iFrontViewIndex=1;
+			}
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]==1
+				&&vecFingerState[3]!=1
+				&&vecFingerState[4]!=1)
+			{
+				_dRotX=180;
+				_dRotY=0;
+				_dRotZ=0;
+				_iFrontViewIndex=2;
+			}
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]==1
+				&&vecFingerState[3]==1
+				&&vecFingerState[4]!=1)
+			{
+				_dRotX=90;
+				_dRotY=0;
+				_dRotZ=0;
+				_iFrontViewIndex=3;
+			}
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]==1
+				&&vecFingerState[3]==1
+				&&vecFingerState[4]==1)
+			{
+				_dRotX=-90;
+				_dRotY=0;
+				_dRotZ=0;
+				_iFrontViewIndex=4;
+			}
+			if (vecFingerState[0]==1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]==1
+				&&vecFingerState[3]==1
+				&&vecFingerState[4]==1)
+			{
+				_dRotX=0;
+				_dRotY=90;
+				_dRotZ=0;
+				_iFrontViewIndex=5;
+			}
+			if (vecFingerState[0]==1
+				&&vecFingerState[1]!=1
+				&&vecFingerState[2]!=1
+				&&vecFingerState[3]!=1
+				&&vecFingerState[4]==1)
+			{
+				_dRotX=0;
+				_dRotY=-90;
+				_dRotZ=0;
+				_iFrontViewIndex=6;
+			}
+			_dZoom=-5;
+			//if (_iFrontViewIndex>=1&&_iFrontViewIndex<=6)
+			//{
+			//	_CurState=OpState::Adapting;
+			//}
+		}
+		else	if (_CurState==OpState::Move)
+		{
+			float dStep=0.05;
+			float dDiffX=0;
+			float dDiffY=0;
+
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]!=1
+				&&vecFingerState[3]!=1
+				&&vecFingerState[4]!=1)
+			{
+				dDiffX=-dStep;
+				dDiffY=0;
+			}
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]==1
+				&&vecFingerState[3]!=1
+				&&vecFingerState[4]!=1)
+			{
+				dDiffX=dStep;
+				dDiffY=0;
+			}
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]==1
+				&&vecFingerState[3]==1
+				&&vecFingerState[4]!=1)
+			{
+				dDiffX=0;
+				dDiffY=-dStep;
+			}
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]==1
+				&&vecFingerState[3]==1
+				&&vecFingerState[4]==1)
+			{
+				dDiffX=0;
+				dDiffY=dStep;
+			}
+
+			_dMoveX+=dDiffX;
+			_dMoveY+=dDiffY;
+		}
+		else	if (_CurState==OpState::Rotate)
+		{
+			float dStep=2;
+			float dDiffX=0;
+			float dDiffY=0;
+			float dDiffZ=0;
+			if (vecFingerState[0]!=1)
+			{
+				if (vecFingerState[1]==1)
+				{
+					dDiffX+=dStep;
+				}
+				if (vecFingerState[2]==1)
+				{
+					dDiffY+=dStep;
+				}
+				if (vecFingerState[3]==1)
+				{
+					dDiffZ+=dStep;
+				}
+			}
+			else if (vecFingerState[0]==1)
+			{
+				if (vecFingerState[1]==1)
+				{
+					dDiffX+=-dStep;
+				}
+				if (vecFingerState[2]==1)
+				{
+					dDiffY+=-dStep;
+				}
+				if (vecFingerState[3]==1)
+				{
+					dDiffZ+=-dStep;
+				}
+			}
+
+			_dRotX+=dDiffX;
+			_dRotY+=dDiffY;
+			_dRotZ+=dDiffZ;
+		}
+		else	if (_CurState==OpState::Zoom)
+		{
+			float dStep=0.1;
+			float dDiff=0;
+
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]!=1
+				&&vecFingerState[3]!=1
+				&&vecFingerState[4]!=1)
+			{
+				dDiff=dStep;
+			}
+			if (vecFingerState[0]==1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]!=1
+				&&vecFingerState[3]!=1
+				&&vecFingerState[4]!=1)
+			{
+				dDiff=-dStep;
+			}
+
+			_dZoom+=dDiff;
+		}
+	}
+
+	updateGL();
+}
+
+
 
 //鼠标事件
 void GlWndMain::mousePressEvent(QMouseEvent *e)
@@ -696,31 +1002,51 @@ void GlWndMain::loadGLTextures()
 }
 void GlWndMain::DrawARBox()
 {//glTexImage2D在创建图片纹理时，整体变得很暗，所以先全部使用视频贴图
-	cout<<__FUNCTION__<<endl;
+	//cout<<__FUNCTION__<<endl;
 	//如果加载视频成功，就把视频显示在方块上，否则显示图片数据
 	if(bARVidioOK)
 	{
 		GLuint videoTextur;
 		glGenTextures(1, &videoTextur);
-		if(videoOfAR.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video1)
-		{
-			videoOfAR.set(CV_CAP_PROP_POS_FRAMES, 0);
-		}
 
-		videoOfAR>>mFrameForBox ; 
-		//cvtColor(mFrameForBox, mFrameForBox, CV_BGR2RGB);
-		QImage buf2, tex;
-		//将Mat类型转换成QImage
-		buf2 = QImage((const unsigned char*)mFrameForBox.data, mFrameForBox.cols, mFrameForBox.rows, mFrameForBox.cols * mFrameForBox.channels(), QImage::Format_RGB888);
-		if (buf2.isNull())
+		//测试截图后要改回来
+		QImage mBuf, mTex;
+		if (0)
 		{
-			return;
+			if(videoOfAR.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video1)
+			{
+				videoOfAR.set(CV_CAP_PROP_POS_FRAMES, 0);
+			}
+			videoOfAR>>mFrameForBox ; 
+
+			//cvtColor(mFrameForBox, mFrameForBox, CV_BGR2RGB);
+			//将Mat类型转换成QImage
+			mBuf = QImage((const unsigned char*)mFrameForBox.data, mFrameForBox.cols, mFrameForBox.rows, mFrameForBox.cols * mFrameForBox.channels(), QImage::Format_RGB888);
+			if (mBuf.isNull())
+			{
+				return;
+			}
+			mTex = QGLWidget::convertToGLFormat(mBuf);
 		}
-		tex = QGLWidget::convertToGLFormat(buf2);
+		else
+		{
+			string sTexPath="Data\\2.jpg";
+			QString qsTexPath = QString::fromStdString(sTexPath);
+			if (!mBuf.load(qsTexPath))
+			{
+				cout<<"cannot open image : "<<qsTexPath.toStdString()<<endl;
+				QImage dummy(128,128,QImage::Format_ARGB32);
+				dummy.fill(Qt::lightGray);
+				mBuf = dummy;//如果载入不成功，自动生成颜色图片
+			}
+			mTex = QGLWidget::convertToGLFormat(mBuf);//QGLWidget提供的专门转换图片的静态函数
+			mTex=mTex.rgbSwapped();
+
+		}
 		glBindTexture(GL_TEXTURE_2D, videoTextur);//建立一个绑定到目标纹理的纹理
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexImage2D(GL_TEXTURE_2D, 0, 3, tex.width(), tex.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, tex.bits());
+		glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex.width(), mTex.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex.bits());
 
 		glBindTexture(GL_TEXTURE_2D, videoTextur);
 		glBegin(GL_QUADS);

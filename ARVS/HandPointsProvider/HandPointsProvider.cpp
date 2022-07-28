@@ -90,6 +90,7 @@ Point3D HandPointsProvider::GetTipOfIndexFinger(bool bNewest)
 	return Point3D(-1,-1);
 }
 
+/*
 std::string HandPointsProvider::GetFingerState(bool bNewest)
 {
 	std::string iResult="";
@@ -173,6 +174,110 @@ std::string HandPointsProvider::GetFingerState(bool bNewest)
 	}
 
 	return iResult;
+}
+*/
+vector<int> HandPointsProvider::GetFingerState(bool bNewest)
+{
+	vector<int> vecResult;
+	if (bNewest)
+	{
+		GetAllHandPoints();
+	}
+
+	if (_vecHandPoints.size() != 21)
+		return vecResult;
+
+	//tip's index: 4, 8, 12, 16, 20
+	vector<int> vecFingerTipIndex;
+	vecFingerTipIndex.push_back(4);
+	vecFingerTipIndex.push_back(8);
+	vecFingerTipIndex.push_back(12);
+	vecFingerTipIndex.push_back(16);
+	vecFingerTipIndex.push_back(20);
+
+	int iTipIndex=-1;
+
+	//left or right
+	bool bRight=false;
+	if (_vecHandPoints[2].X < _vecHandPoints[17].X)
+	{
+		bRight=true;
+	}
+	else
+	{
+		bRight=false;
+	}
+
+	////Palm
+	//int iPalmHight=_vecHandPoints[0].DistanceTo(_vecHandPoints[9]);
+	//int iPalmWidth=_vecHandPoints[5].DistanceTo(_vecHandPoints[17]);
+	//int iThumbLen=_vecHandPoints[2].DistanceTo(_vecHandPoints[4]);
+	////侧掌？
+	//bool bSidePalm=false;
+	//if (iPalmWidth<iPalmHight/2)
+	//{
+	//	bool bSidePalm=true;
+	//}
+	//else
+	//{
+	//	bool bSidePalm=false;
+	//}
+
+
+	//Thumb
+	iTipIndex=vecFingerTipIndex[0];
+	if (bRight 
+		&& _vecHandPoints[iTipIndex].X < _vecHandPoints[iTipIndex-2].X
+		)
+	{
+		vecResult.push_back(1);
+	}
+	else	if (!bRight 
+		&& _vecHandPoints[iTipIndex].X > _vecHandPoints[iTipIndex-2].X
+		)
+	{
+		vecResult.push_back(1);
+	}
+	else
+	{
+		vecResult.push_back(0);
+	}
+
+	//Other four
+	for (int a=1;a<5;a++)
+	{
+		iTipIndex=vecFingerTipIndex[a];
+		//指尖最高，伸出1
+		if ((_vecHandPoints[iTipIndex].Y < _vecHandPoints[iTipIndex-1].Y)
+			&&(_vecHandPoints[iTipIndex].Y < _vecHandPoints[iTipIndex-2].Y)
+			&&(_vecHandPoints[iTipIndex].Y < _vecHandPoints[iTipIndex-3].Y)
+			)
+		{
+			vecResult.push_back(1);
+		}
+		//指尖-3最高，闭合0
+		else if (	(_vecHandPoints[iTipIndex-3].Y < _vecHandPoints[iTipIndex].Y)
+						&&(_vecHandPoints[iTipIndex-3].Y < _vecHandPoints[iTipIndex-1].Y)
+						&&(_vecHandPoints[iTipIndex-3].Y < _vecHandPoints[iTipIndex-2].Y)
+		)
+		{
+			vecResult.push_back(0);
+		}
+		////指尖-2最高，半伸出2
+		//else if (	(_vecHandPoints[iTipIndex-2].Y < _vecHandPoints[iTipIndex].Y)
+		//				&&(_vecHandPoints[iTipIndex-2].Y < _vecHandPoints[iTipIndex-1].Y)
+		//				&&(_vecHandPoints[iTipIndex-2].Y < _vecHandPoints[iTipIndex-3].Y)
+		//	)
+		//{
+		//	vecResult.push_back(2);
+		//}
+		else
+		{
+			vecResult.push_back(0);
+		}
+	}
+
+	return vecResult;
 }
 
 bool HandPointsProvider::GetHandCount()

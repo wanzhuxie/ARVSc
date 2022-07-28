@@ -72,7 +72,7 @@ private:
 
 	QPoint lastPos;//鼠标位置
 
-
+	bool _bKeepState;
 	bool _bRun;//开始结束
 	bool _bPause;//暂停继续
 	bool _bHyaline;//是否开启透明
@@ -105,13 +105,18 @@ private:
 	BOOL _bShowHandPoints;
 	enum OpState
 	{
-		Initial,//尚未通过手势控制
-		FrontView,//正视
-		Adapting,//正在调整到正视中
-		Adjustment//手调
+		Initial//尚未通过手势控制
+		//,Pause
+		,FrontView//正视
+		,Adapting//正在调整到正视中NG
+		,Adjustment//度量调整NG
+		,Move//手调
+		,Rotate//手调
+		,Zoom//手调
+
 	};
 	OpState _CurState;
-
+	std::string _strLastFingerState;
 	bool _bCreatedArBox;
 };
 

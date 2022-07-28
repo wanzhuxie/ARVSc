@@ -59,6 +59,11 @@ struct Vector2
 
     friend Vector2 operator*(const float a, const Vector2 vec);
     friend std::ostream& operator<<(std::ostream& os, const Vector2& vec);
+
+		float AngleTo(const Vector2& rhs)
+		{
+			return acos(this->dot(rhs)/(this->length()*rhs.length()));
+		}
 };
 
 
@@ -281,6 +286,8 @@ inline std::ostream& operator<<(std::ostream& os, const Vector2& vec) {
     os << "(" << vec.x << ", " << vec.y << ")";
     return os;
 }
+
+
 // END OF VECTOR2 /////////////////////////////////////////////////////////////
 
 

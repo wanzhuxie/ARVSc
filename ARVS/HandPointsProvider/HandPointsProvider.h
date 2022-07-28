@@ -62,7 +62,8 @@ public:
 	//transform to plam box
 	bool GetTransfPoint();
 
-	std::string GetFingerState(bool bNewest=true);
+	//std::string GetFingerState(bool bNewest=true);
+	vector<int> GetFingerState(bool bNewest=true);
 	vector<float> GetDistanceToPlamPlane();
 
 	float GetVectorAngle(const Vector2D& vec1, const Vector2D& vec2);
