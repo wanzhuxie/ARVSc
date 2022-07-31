@@ -7,7 +7,6 @@
 分别设置GL的投影矩阵及模型视图矩阵
 在当前矩阵下绘制立方体
 对立方体的各个面设置贴图
-
 */
 #include "GlWndMain.h"
 #include "GeneralFunctions.h"
@@ -429,7 +428,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	//获取当前屏幕像素
 	int cxScreen = GetSystemMetrics (SM_CXSCREEN) ;  // wide
 	int cyScreen = GetSystemMetrics (SM_CYSCREEN) ;  // high
-
 	//借助MediaPip的Python版本完成手部关键点识别
 	_mMainCapture.read(_mFrameImage); 
 	if (_access("Data\\CreatedImage" , 0)==0)
@@ -459,7 +457,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	}
 	std::string vecFingerState=_handPointsCls.GetFingerState(false);
 	//cout<<"FingerState: "<<vecFingerState<<endl;
-
 	Point3D mTipPos;
 	{
 		//转换到屏幕坐标
@@ -470,7 +467,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 		int iImgRange_Ymax=360;
 		int iRangeWidth=iImgRange_Xmax-iImgRange_Xmin;
 		int iRangeHight=iImgRange_Ymax-iImgRange_Ymin;
-
 		mTipPos.X=(mTipPos_img.X-iImgRange_Xmin)*cxScreen/iRangeWidth;
 		mTipPos.Y=(mTipPos_img.Y-iImgRange_Ymin)*cyScreen/iRangeHight;
 		if(mTipPos.X <0)
@@ -482,11 +478,9 @@ void GlWndMain::timerEvent(QTimerEvent *)
 		if (mTipPos.Y>cyScreen)
 			mTipPos.Y=cyScreen;
 	}
-
 	Point3D mMousePos;
 	mMousePos.X = _mLastPos.X + (mTipPos.X - _mLastPos.X) / 5;
 	mMousePos.Y = _mLastPos.Y + (mTipPos.Y - _mLastPos.Y) / 5;
-
 	//删除微小移动误差
 	float fDiff=mMousePos.DistanceTo(_mLastPos);
 	//cout<<"error Diff:"<<fDiff<<endl;
@@ -494,19 +488,16 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	{
 		return;
 	}
-
 	GLfloat dx = GLfloat(mMousePos.X-_mLastPos.X)/width();
 	GLfloat dy = GLfloat(mMousePos.Y-_mLastPos.Y)/height();
 	_mLastPos=mMousePos;
 	cout<<"dx"<<dx<<endl;
 	cout<<"dy"<<dy<<endl;
-
 	int iSumZ=0;
 	for(int a=0;a<_vecAllHandPoints.size();a++)
 	{
 		iSumZ+=_vecAllHandPoints[a].Z;
 	}
-
 	//if(_iLastSumZ!=0)
 	//{
 	//	double dZoomDiff=double(iSumZ-_iLastSumZ)/100;
@@ -518,7 +509,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	//	}
 	//}
 	//_iLastSumZ=iSumZ;
-
 	//状态变迁
 	if (vecFingerState=="00000")
 	{
@@ -527,7 +517,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 			return;
 		}
 		_bPause=true;
-
 		if (_CurState==OpState::Initial)
 		{
 			_CurState=OpState::FrontView;
@@ -545,9 +534,7 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	else
 	{
 		_bPause=false;
-
 		cout<<_CurState<<endl;
-
 		//FrontView
 		if (_CurState==OpState::Initial)
 		{
@@ -557,7 +544,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 		{
 			_dMoveX =0;
 			_dMoveY =0;
-
 			//thump, index finger
 			if (vecFingerState=="01000")
 			{
@@ -605,7 +591,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 		{
 			//不是正视
 			_iFrontViewIndex=0;
-
 			if (vecFingerState=="01100")
 			{
 				_dMoveX += dx*5;
@@ -621,7 +606,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 			//	GLfloat zValue = dx+(-dy);
 			//	_dZoom += zValue*2;
 			//}
-
 			//if (_dZoom<0.1)							_dZoom=0.1;
 			//if (_dZoom>1.0)							_dZoom = 1.0;
 			//if (_dMoveX<0)							_dMoveX=0;
@@ -634,7 +618,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 			//if (_dRotY<-360)						_dRotY=int(_dRotY)%360;
 		}
 	}
-
 	updateGL();
 }
 */
@@ -1001,8 +984,11 @@ void GlWndMain::loadGLTextures()
 	glEnable(GL_TEXTURE_2D);
 }
 void GlWndMain::DrawARBox()
-{//glTexImage2D在创建图片纹理时，整体变得很暗，所以先全部使用视频贴图
+{
+	//glTexImage2D在创建图片纹理时，整体变得很暗，所以先全部使用视频贴图
 	//cout<<__FUNCTION__<<endl;
+
+	int iStartTime=GetSysTime_number();
 	//如果加载视频成功，就把视频显示在方块上，否则显示图片数据
 	if(bARVidioOK)
 	{
@@ -1011,22 +997,29 @@ void GlWndMain::DrawARBox()
 
 		//测试截图后要改回来
 		QImage mBuf, mTex;
-		if (0)
+		if (1)
 		{
 			if(videoOfAR.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video1)
 			{
 				videoOfAR.set(CV_CAP_PROP_POS_FRAMES, 0);
 			}
+			int iTime1=GetSysTime_number();
 			videoOfAR>>mFrameForBox ; 
+			int iTime2=GetSysTime_number();
+			cout<<"videoOfAR>>mFrameForBox 耗时ms:"<<iTime2-iTime1<<endl;
 
 			//cvtColor(mFrameForBox, mFrameForBox, CV_BGR2RGB);
 			//将Mat类型转换成QImage
 			mBuf = QImage((const unsigned char*)mFrameForBox.data, mFrameForBox.cols, mFrameForBox.rows, mFrameForBox.cols * mFrameForBox.channels(), QImage::Format_RGB888);
+			int iTime3=GetSysTime_number();
+			cout<<"将Mat类型转换成QImage 耗时ms:"<<iTime3-iTime2<<endl;
 			if (mBuf.isNull())
 			{
 				return;
 			}
 			mTex = QGLWidget::convertToGLFormat(mBuf);
+			int iTime4=GetSysTime_number();
+			cout<<"convertToGLFormat 耗时ms:"<<iTime4-iTime3<<endl;
 		}
 		else
 		{
@@ -1046,7 +1039,12 @@ void GlWndMain::DrawARBox()
 		glBindTexture(GL_TEXTURE_2D, videoTextur);//建立一个绑定到目标纹理的纹理
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		//glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex.width(), mTex.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+		int iTime5=GetSysTime_number();
 		glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex.width(), mTex.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex.bits());
+		int iTime6=GetSysTime_number();
+		cout<<"convertToGLFormat 耗时ms:"<<iTime6-iTime5<<endl;
 
 		glBindTexture(GL_TEXTURE_2D, videoTextur);
 		glBegin(GL_QUADS);
@@ -1288,4 +1286,3 @@ void GlWndMain::CloseVideo()
 {
 	_bOpenAR=false;
 }
-

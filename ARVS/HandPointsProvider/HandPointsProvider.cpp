@@ -20,7 +20,10 @@ bool HandPointsProvider::Init()
 
 	if (_access("Data\\GiveHandPos.py" , 0)==0)
 	{
-		system("start D:\\ProgramData\\Anaconda3\\pythonw Data\\GiveHandPos.py");
+		//if (!CheckFileOpened("Data\\GiveHandPos.py"))
+		{
+			system("start D:\\ProgramData\\Anaconda3\\pythonw Data\\GiveHandPos.py");
+		}
 	}
 
 	return true;

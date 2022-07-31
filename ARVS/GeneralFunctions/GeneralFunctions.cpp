@@ -78,4 +78,16 @@ std::string IntToStr(int i)
 	return ss.str();
 }
 
+//检查文件是否在打开
+bool CheckFileOpened (std::string strFilePath)
+{
+	HANDLE hFile = CreateFileA (strFilePath.c_str() , GENERIC_READ , 0 , NULL , OPEN_EXISTING , FILE_ATTRIBUTE_NORMAL , NULL);
+	if (hFile == INVALID_HANDLE_VALUE)
+	{
+		CloseHandle (hFile);
+		return TRUE;
+	}
+	CloseHandle (hFile);
+	return FALSE;
+}
 
