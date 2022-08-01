@@ -27,6 +27,7 @@ public:
 	GlWndMain(QWidget *parent = 0);
 	~GlWndMain();
 	void DrawARBox();
+	void DrawARBox2();
 	void DrawMainBox();
 	void Run();
 	void Stop();
@@ -81,11 +82,28 @@ private:
 
 	VideoCapture _mMainCapture;
 	Mat _mFrameImage;
-	int _iFrameCount_Video1;
+
 	//AR方块视频
-	VideoCapture videoOfAR;
-	BOOL bARVidioOK;
-	Mat mFrameForBox;
+	VideoCapture videoOfAR0;
+	VideoCapture videoOfAR1;
+	VideoCapture videoOfAR2;
+	VideoCapture videoOfAR3;
+	VideoCapture videoOfAR4;
+	VideoCapture videoOfAR5;
+	int _iFrameCount_Video0;
+	int _iFrameCount_Video1;
+	int _iFrameCount_Video2;
+	int _iFrameCount_Video3;
+	int _iFrameCount_Video4;
+	int _iFrameCount_Video5;
+	Mat _mFaceFrame0;
+	Mat _mFaceFrame1;
+	Mat _mFaceFrame2;
+	Mat _mFaceFrame3;
+	Mat _mFaceFrame4;
+	Mat _mFaceFrame5;
+
+	BOOL _bARVideoOK;
 
 	//标记角点
 	vector<cv::Point3f> _mMarkerCorners;

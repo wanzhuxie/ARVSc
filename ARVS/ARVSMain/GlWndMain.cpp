@@ -27,10 +27,6 @@ using namespace std;
 
 float dARBoxWidth=0.4;
 
-BOOL GestureEqual(const vector<int>& vecFingerState , const std::string & strTargetState)
-{
-	return FALSE;
-}
 
 std::string ComputeStateSignal(const vector<int>&vecState)
 {
@@ -55,19 +51,22 @@ GlWndMain::GlWndMain(QWidget *parent)
 	,_bCreatedArBox(false)
 	,_iLastSumZ(0)
 	,_bShowHandPoints(true)
+	,_bARVideoOK(true)
 {
 	
-	bARVidioOK=FALSE;
-	videoOfAR=VideoCapture("Data/video.mp4");
-	if (videoOfAR.isOpened())
-	{
-		bARVidioOK=true;
-		_iFrameCount_Video1=videoOfAR.get(CV_CAP_PROP_FRAME_COUNT);
-	}
-	else
-	{
-		bARVidioOK=false;
-	}
+	videoOfAR0=VideoCapture("Data/video0.mp4");
+	videoOfAR1=VideoCapture("Data/video1.mp4");
+	videoOfAR2=VideoCapture("Data/video2.mp4");
+	videoOfAR3=VideoCapture("Data/video3.mp4");
+	videoOfAR4=VideoCapture("Data/video4.mp4");
+	videoOfAR5=VideoCapture("Data/video5.mp4");
+	if (videoOfAR0.isOpened())		_iFrameCount_Video0=videoOfAR0.get(CV_CAP_PROP_FRAME_COUNT);	else	_bARVideoOK=false;
+	if (videoOfAR1.isOpened())		_iFrameCount_Video1=videoOfAR1.get(CV_CAP_PROP_FRAME_COUNT);	else	_bARVideoOK=false;
+	if (videoOfAR2.isOpened())		_iFrameCount_Video2=videoOfAR2.get(CV_CAP_PROP_FRAME_COUNT);	else	_bARVideoOK=false;
+	if (videoOfAR3.isOpened())		_iFrameCount_Video3=videoOfAR3.get(CV_CAP_PROP_FRAME_COUNT);	else	_bARVideoOK=false;
+	if (videoOfAR4.isOpened())		_iFrameCount_Video4=videoOfAR4.get(CV_CAP_PROP_FRAME_COUNT);	else	_bARVideoOK=false;
+	if (videoOfAR5.isOpened())		_iFrameCount_Video5=videoOfAR5.get(CV_CAP_PROP_FRAME_COUNT);	else	_bARVideoOK=false;
+
 
 	_dRotX = _dRotY = _dRotZ = 0;
 	stepRotX=0;
@@ -905,6 +904,21 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	updateGL();
 }
 
+bool ImageCVToGL(const Mat & mImageCV , GLubyte * & pixels)
+{
+	int iTime1=GetSysTime_number();
+
+	int imageWidth=mImageCV.cols;
+	int imageHeight=mImageCV.rows;
+	int iSize=imageWidth*imageHeight*3;
+	pixels=new GLubyte[iSize];
+	memcpy(pixels , mImageCV.data , iSize*sizeof(unsigned char));
+
+	int iTime2=GetSysTime_number();
+	cout<<"ImageCVToGL time taken(ms):"<<iTime2-iTime1<<endl;
+
+	return true;
+}
 
 
 //鼠标事件
@@ -983,6 +997,206 @@ void GlWndMain::loadGLTextures()
 	}
 	glEnable(GL_TEXTURE_2D);
 }
+void GlWndMain::DrawARBox2()
+{
+	//glTexImage2D在创建图片纹理时，整体变得很暗，所以先全部使用视频贴图
+	//cout<<__FUNCTION__<<endl;
+
+	int iStartTime=GetSysTime_number();
+
+	if(_bARVideoOK)
+	{
+		if(videoOfAR0.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video0)	videoOfAR0.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR0>>_mFaceFrame0 ; 
+		if(videoOfAR1.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video1)	videoOfAR1.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR1>>_mFaceFrame1 ; 
+		if(videoOfAR2.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video2)	videoOfAR2.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR2>>_mFaceFrame2 ; 
+		if(videoOfAR3.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video3)	videoOfAR3.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR3>>_mFaceFrame3 ; 
+		if(videoOfAR4.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video4)	videoOfAR4.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR4>>_mFaceFrame4 ; 
+		if(videoOfAR5.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video5)	videoOfAR5.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR5>>_mFaceFrame5 ; 
+
+		GLubyte*imageData0=NULL;ImageCVToGL(_mFaceFrame0,imageData0);
+		GLubyte*imageData1=NULL;ImageCVToGL(_mFaceFrame1,imageData1);
+		GLubyte*imageData2=NULL;ImageCVToGL(_mFaceFrame2,imageData2);
+		GLubyte*imageData3=NULL;ImageCVToGL(_mFaceFrame3,imageData3);
+		GLubyte*imageData4=NULL;ImageCVToGL(_mFaceFrame4,imageData4);
+		GLubyte*imageData5=NULL;ImageCVToGL(_mFaceFrame5,imageData5);
+
+		GLuint videoTextur0;		glGenTextures(1, &videoTextur0);
+		GLuint videoTextur1;		glGenTextures(1, &videoTextur1);
+		GLuint videoTextur2;		glGenTextures(1, &videoTextur2);
+		GLuint videoTextur3;		glGenTextures(1, &videoTextur3);
+		GLuint videoTextur4;		glGenTextures(1, &videoTextur4);
+		GLuint videoTextur5;		glGenTextures(1, &videoTextur5);
+		
+		int iTime2=GetSysTime_number();
+		cout<<"创建贴图 耗时(ms):"<<iTime2-iStartTime<<endl;
+
+		// 前面
+		{
+			glBindTexture(GL_TEXTURE_2D, videoTextur0);//建立一个绑定到目标纹理的纹理
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			int iTime5=GetSysTime_number();
+			glTexImage2D(GL_TEXTURE_2D, 0, 3, _mFaceFrame0.cols, _mFaceFrame0.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, imageData0);
+			int iTime6=GetSysTime_number();
+			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+		}
+
+		glBindTexture(GL_TEXTURE_2D, videoTextur0);
+		glBegin(GL_QUADS);
+		glNormal3f(0,0,1);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
+		glTexCoord2f(1.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
+		glTexCoord2f(1.0f, 1.0f); glVertex3f( dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右上
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的左上
+		glEnd();
+
+		int iTime3=GetSysTime_number();
+		cout<<"面0 耗时(ms):"<<iTime3-iTime2<<endl;
+
+		// 后面
+		{
+			glBindTexture(GL_TEXTURE_2D, videoTextur1);//建立一个绑定到目标纹理的纹理
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			int iTime5=GetSysTime_number();
+			glTexImage2D(GL_TEXTURE_2D, 0, 3, _mFaceFrame1.cols, _mFaceFrame1.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, imageData1);
+			int iTime6=GetSysTime_number();
+			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+		}
+
+		glBindTexture(GL_TEXTURE_2D,videoTextur1);
+		glBegin(GL_QUADS);
+		glNormal3f(0,0,-1);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右下
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
+		glTexCoord2f(0.0f, 1.0f); glVertex3f( dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
+		glTexCoord2f(0.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左下
+		glEnd();
+
+		int iTime4=GetSysTime_number();
+		cout<<"面1 耗时(ms):"<<iTime4-iTime3<<endl;
+
+		// 顶面
+		{
+			glBindTexture(GL_TEXTURE_2D, videoTextur2);//建立一个绑定到目标纹理的纹理
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			int iTime5=GetSysTime_number();
+			glTexImage2D(GL_TEXTURE_2D, 0, 3, _mFaceFrame2.cols, _mFaceFrame2.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, imageData2);
+			int iTime6=GetSysTime_number();
+			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+		}
+
+		glBindTexture(GL_TEXTURE_2D, videoTextur2);
+		glBegin(GL_QUADS);
+		glNormal3f(0,1,0);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
+		glTexCoord2f(0.0f, 1.0f); glVertex3f( dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
+		glTexCoord2f(0.0f, 0.0f); glVertex3f( dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
+		glEnd();
+
+		int iTime5=GetSysTime_number();
+		cout<<"面2 耗时(ms):"<<iTime5-iTime4<<endl;
+
+		// 底面
+		{
+			glBindTexture(GL_TEXTURE_2D, videoTextur3);//建立一个绑定到目标纹理的纹理
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			int iTime5=GetSysTime_number();
+			glTexImage2D(GL_TEXTURE_2D, 0, 3, _mFaceFrame3.cols, _mFaceFrame3.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, imageData3);
+			int iTime6=GetSysTime_number();
+			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+		}
+
+		glBindTexture(GL_TEXTURE_2D, videoTextur3);
+		glBegin(GL_QUADS);
+		glNormal3f(0,-1,0);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
+		glTexCoord2f(1.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
+		glTexCoord2f(1.0f, 1.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
+		glEnd();
+
+		int iTime6=GetSysTime_number();
+		cout<<"面3 耗时(ms):"<<iTime6-iTime5<<endl;
+
+		// 右面
+		{
+			glBindTexture(GL_TEXTURE_2D, videoTextur4);//建立一个绑定到目标纹理的纹理
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			int iTime5=GetSysTime_number();
+			glTexImage2D(GL_TEXTURE_2D, 0, 3, _mFaceFrame4.cols, _mFaceFrame4.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, imageData4);
+			int iTime6=GetSysTime_number();
+			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+		}
+
+		glBindTexture(GL_TEXTURE_2D, videoTextur4);
+		glBegin(GL_QUADS);
+		glNormal3f(1,0,0);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右下
+		glTexCoord2f(1.0f, 0.0f); glVertex3f( dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
+		glTexCoord2f(1.0f, 1.0f); glVertex3f( dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的左上
+		glTexCoord2f(0.0f, 1.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
+		glEnd();
+
+		int iTime7=GetSysTime_number();
+		cout<<"面4 耗时(ms):"<<iTime7-iTime6<<endl;
+
+		// 左面
+		{
+			glBindTexture(GL_TEXTURE_2D, videoTextur5);//建立一个绑定到目标纹理的纹理
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			int iTime5=GetSysTime_number();
+			glTexImage2D(GL_TEXTURE_2D, 0, 3, _mFaceFrame5.cols, _mFaceFrame5.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, imageData5);
+			int iTime6=GetSysTime_number();
+			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+		}
+
+		glBindTexture(GL_TEXTURE_2D, videoTextur5);
+		glBegin(GL_QUADS);
+		glNormal3f(-1,0,0);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左下
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右上
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
+		glEnd();
+
+		int iTime8=GetSysTime_number();
+		cout<<"面5 耗时(ms):"<<iTime8-iTime7<<endl;
+
+		glDeleteTextures(1, &videoTextur0);
+		glDeleteTextures(1, &videoTextur1);
+		glDeleteTextures(1, &videoTextur2);
+		glDeleteTextures(1, &videoTextur3);
+		glDeleteTextures(1, &videoTextur4);
+		glDeleteTextures(1, &videoTextur5);
+
+		free(imageData0);
+		free(imageData1);
+		free(imageData2);
+		free(imageData3);
+		free(imageData4);
+		free(imageData5);
+
+		int iTime9=GetSysTime_number();
+		cout<<"内存管理 耗时(ms):"<<iTime9-iTime8<<endl;
+
+	}
+
+	cout<<"DrawARBox 耗时(ms):"<<GetSysTime_number()-iStartTime<<endl;
+
+	_bCreatedArBox=true;
+}
 void GlWndMain::DrawARBox()
 {
 	//glTexImage2D在创建图片纹理时，整体变得很暗，所以先全部使用视频贴图
@@ -990,75 +1204,110 @@ void GlWndMain::DrawARBox()
 
 	int iStartTime=GetSysTime_number();
 	//如果加载视频成功，就把视频显示在方块上，否则显示图片数据
-	if(bARVidioOK)
+	if(_bARVideoOK)
 	{
-		GLuint videoTextur;
-		glGenTextures(1, &videoTextur);
-
-		//测试截图后要改回来
-		QImage mBuf, mTex;
+		QImage mBuf0, mTex0;
+		QImage mBuf1, mTex1;
+		QImage mBuf2, mTex2;
+		QImage mBuf3, mTex3;
+		QImage mBuf4, mTex4;
+		QImage mBuf5, mTex5;
 		if (1)
 		{
-			if(videoOfAR.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video1)
-			{
-				videoOfAR.set(CV_CAP_PROP_POS_FRAMES, 0);
-			}
 			int iTime1=GetSysTime_number();
-			videoOfAR>>mFrameForBox ; 
-			int iTime2=GetSysTime_number();
-			cout<<"videoOfAR>>mFrameForBox 耗时ms:"<<iTime2-iTime1<<endl;
 
-			//cvtColor(mFrameForBox, mFrameForBox, CV_BGR2RGB);
+			if(videoOfAR0.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video0)	videoOfAR0.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR0>>_mFaceFrame0 ; 
+			if(videoOfAR1.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video1)	videoOfAR1.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR1>>_mFaceFrame1 ; 
+			if(videoOfAR2.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video2)	videoOfAR2.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR2>>_mFaceFrame2 ; 
+			if(videoOfAR3.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video3)	videoOfAR3.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR3>>_mFaceFrame3 ; 
+			if(videoOfAR4.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video4)	videoOfAR4.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR4>>_mFaceFrame4 ; 
+			if(videoOfAR5.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video5)	videoOfAR5.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR5>>_mFaceFrame5 ; 
+
+			int iTime2=GetSysTime_number();
+			cout<<"read FaceFrame 耗时ms:"<<iTime2-iTime2<<endl;
+
+			//cvtColor(_mFaceFrame0, _mFaceFrame0, CV_BGR2RGB);
 			//将Mat类型转换成QImage
-			mBuf = QImage((const unsigned char*)mFrameForBox.data, mFrameForBox.cols, mFrameForBox.rows, mFrameForBox.cols * mFrameForBox.channels(), QImage::Format_RGB888);
+			mBuf0 = QImage((const unsigned char*)_mFaceFrame0.data, _mFaceFrame0.cols, _mFaceFrame0.rows, _mFaceFrame0.cols * _mFaceFrame0.channels(), QImage::Format_RGB888);
+			mBuf1 = QImage((const unsigned char*)_mFaceFrame1.data, _mFaceFrame1.cols, _mFaceFrame1.rows, _mFaceFrame1.cols * _mFaceFrame1.channels(), QImage::Format_RGB888);
+			mBuf2 = QImage((const unsigned char*)_mFaceFrame2.data, _mFaceFrame2.cols, _mFaceFrame2.rows, _mFaceFrame2.cols * _mFaceFrame2.channels(), QImage::Format_RGB888);
+			mBuf3 = QImage((const unsigned char*)_mFaceFrame3.data, _mFaceFrame3.cols, _mFaceFrame3.rows, _mFaceFrame3.cols * _mFaceFrame3.channels(), QImage::Format_RGB888);
+			mBuf4 = QImage((const unsigned char*)_mFaceFrame4.data, _mFaceFrame4.cols, _mFaceFrame4.rows, _mFaceFrame4.cols * _mFaceFrame4.channels(), QImage::Format_RGB888);
+			mBuf5 = QImage((const unsigned char*)_mFaceFrame5.data, _mFaceFrame5.cols, _mFaceFrame5.rows, _mFaceFrame5.cols * _mFaceFrame5.channels(), QImage::Format_RGB888);
 			int iTime3=GetSysTime_number();
 			cout<<"将Mat类型转换成QImage 耗时ms:"<<iTime3-iTime2<<endl;
-			if (mBuf.isNull())
-			{
-				return;
-			}
-			mTex = QGLWidget::convertToGLFormat(mBuf);
+			if (mBuf0.isNull())	return;
+			if (mBuf1.isNull())	return;
+			if (mBuf2.isNull())	return;
+			if (mBuf3.isNull())	return;
+			if (mBuf4.isNull())	return;
+			if (mBuf5.isNull())	return;
+			mTex0 = QGLWidget::convertToGLFormat(mBuf0);
+			mTex1 = QGLWidget::convertToGLFormat(mBuf1);
+			mTex2 = QGLWidget::convertToGLFormat(mBuf2);
+			mTex3 = QGLWidget::convertToGLFormat(mBuf3);
+			mTex4 = QGLWidget::convertToGLFormat(mBuf4);
+			mTex5 = QGLWidget::convertToGLFormat(mBuf5);
 			int iTime4=GetSysTime_number();
 			cout<<"convertToGLFormat 耗时ms:"<<iTime4-iTime3<<endl;
 		}
-		else
-		{
-			string sTexPath="Data\\2.jpg";
-			QString qsTexPath = QString::fromStdString(sTexPath);
-			if (!mBuf.load(qsTexPath))
-			{
-				cout<<"cannot open image : "<<qsTexPath.toStdString()<<endl;
-				QImage dummy(128,128,QImage::Format_ARGB32);
-				dummy.fill(Qt::lightGray);
-				mBuf = dummy;//如果载入不成功，自动生成颜色图片
-			}
-			mTex = QGLWidget::convertToGLFormat(mBuf);//QGLWidget提供的专门转换图片的静态函数
-			mTex=mTex.rgbSwapped();
+		//else
+		//{
+		//	string sTexPath="Data\\2.jpg";
+		//	QString qsTexPath = QString::fromStdString(sTexPath);
+		//	if (!mBuf.load(qsTexPath))
+		//	{
+		//		cout<<"cannot open image : "<<qsTexPath.toStdString()<<endl;
+		//		QImage dummy(228,228,QImage::Format_ARGB32);
+		//		dummy.fill(Qt::lightGray);
+		//		mBuf = dummy;//如果载入不成功，自动生成颜色图片
+		//	}
+		//	mTex = QGLWidget::convertToGLFormat(mBuf);//QGLWidget提供的专门转换图片的静态函数
+		//	mTex=mTex.rgbSwapped();
+		//}
 
-		}
-		glBindTexture(GL_TEXTURE_2D, videoTextur);//建立一个绑定到目标纹理的纹理
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		//glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex.width(), mTex.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		GLuint videoTextur0;		glGenTextures(1, &videoTextur0);
+		GLuint videoTextur1;		glGenTextures(1, &videoTextur1);
+		GLuint videoTextur2;		glGenTextures(1, &videoTextur2);
+		GLuint videoTextur3;		glGenTextures(1, &videoTextur3);
+		GLuint videoTextur4;		glGenTextures(1, &videoTextur4);
+		GLuint videoTextur5;		glGenTextures(1, &videoTextur5);
 
-		int iTime5=GetSysTime_number();
-		glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex.width(), mTex.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex.bits());
-		int iTime6=GetSysTime_number();
-		cout<<"convertToGLFormat 耗时ms:"<<iTime6-iTime5<<endl;
-
-		glBindTexture(GL_TEXTURE_2D, videoTextur);
-		glBegin(GL_QUADS);
 		// 前面
+		{
+			glBindTexture(GL_TEXTURE_2D, videoTextur0);//建立一个绑定到目标纹理的纹理
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			int iTime5=GetSysTime_number();
+			glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex0.width(), mTex0.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex0.bits());
+			int iTime6=GetSysTime_number();
+			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+		}
+
+		glBindTexture(GL_TEXTURE_2D, videoTextur0);
+		glBegin(GL_QUADS);
 		glNormal3f(0,0,1);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
 		glTexCoord2f(1.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
 		glTexCoord2f(1.0f, 1.0f); glVertex3f( dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右上
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的左上
 		glEnd();
-		//glDeleteTextures(1, &videoTextur);
 
 		// 后面
-		glBindTexture(GL_TEXTURE_2D,videoTextur);
+
+		{
+			glBindTexture(GL_TEXTURE_2D, videoTextur1);//建立一个绑定到目标纹理的纹理
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			int iTime5=GetSysTime_number();
+			glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex1.width(), mTex1.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex1.bits());
+			int iTime6=GetSysTime_number();
+			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+		}
+
+		glBindTexture(GL_TEXTURE_2D,videoTextur1);
 		glBegin(GL_QUADS);
 		glNormal3f(0,0,-1);
 		glTexCoord2f(1.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右下
@@ -1068,7 +1317,19 @@ void GlWndMain::DrawARBox()
 		glEnd();
 
 		// 顶面
-		glBindTexture(GL_TEXTURE_2D, videoTextur);
+
+		{
+			glBindTexture(GL_TEXTURE_2D, videoTextur2);//建立一个绑定到目标纹理的纹理
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			int iTime5=GetSysTime_number();
+			glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex2.width(), mTex2.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex2.bits());
+			int iTime6=GetSysTime_number();
+			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+		}
+
+		glBindTexture(GL_TEXTURE_2D, videoTextur2);
 		glBegin(GL_QUADS);
 		glNormal3f(0,1,0);
 		glTexCoord2f(1.0f, 0.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
@@ -1078,7 +1339,19 @@ void GlWndMain::DrawARBox()
 		glEnd();
 
 		// 底面
-		glBindTexture(GL_TEXTURE_2D, videoTextur);
+
+		{
+			glBindTexture(GL_TEXTURE_2D, videoTextur3);//建立一个绑定到目标纹理的纹理
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			int iTime5=GetSysTime_number();
+			glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex3.width(), mTex3.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex3.bits());
+			int iTime6=GetSysTime_number();
+			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+		}
+
+		glBindTexture(GL_TEXTURE_2D, videoTextur3);
 		glBegin(GL_QUADS);
 		glNormal3f(0,-1,0);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
@@ -1088,7 +1361,19 @@ void GlWndMain::DrawARBox()
 		glEnd();
 
 		// 右面
-		glBindTexture(GL_TEXTURE_2D, videoTextur);
+
+		{
+			glBindTexture(GL_TEXTURE_2D, videoTextur4);//建立一个绑定到目标纹理的纹理
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			int iTime5=GetSysTime_number();
+			glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex4.width(), mTex4.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex4.bits());
+			int iTime6=GetSysTime_number();
+			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+		}
+
+		glBindTexture(GL_TEXTURE_2D, videoTextur4);
 		glBegin(GL_QUADS);
 		glNormal3f(1,0,0);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右下
@@ -1098,7 +1383,19 @@ void GlWndMain::DrawARBox()
 		glEnd();
 
 		// 左面
-		glBindTexture(GL_TEXTURE_2D, videoTextur);
+
+		{
+			glBindTexture(GL_TEXTURE_2D, videoTextur5);//建立一个绑定到目标纹理的纹理
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			int iTime5=GetSysTime_number();
+			glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex5.width(), mTex5.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex5.bits());
+			int iTime6=GetSysTime_number();
+			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+		}
+
+		glBindTexture(GL_TEXTURE_2D, videoTextur5);
 		glBegin(GL_QUADS);
 		glNormal3f(-1,0,0);
 		glTexCoord2f(1.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左下
@@ -1106,73 +1403,82 @@ void GlWndMain::DrawARBox()
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右上
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
 		glEnd();
-		glDeleteTextures(1, &videoTextur);
+
+		glDeleteTextures(1, &videoTextur0);
+		glDeleteTextures(1, &videoTextur1);
+		glDeleteTextures(1, &videoTextur2);
+		glDeleteTextures(1, &videoTextur3);
+		glDeleteTextures(1, &videoTextur4);
+		glDeleteTextures(1, &videoTextur5);
 	}
 	else
 	{
 		// 前面
 		glBindTexture(GL_TEXTURE_2D,texture[0]);
 		glBegin(GL_QUADS);
-		glNormal3f(0,0,1);
+		glNormal3f(0,0,2);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
-		glTexCoord2f(1.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
-		glTexCoord2f(1.0f, 1.0f); glVertex3f( dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右上
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的左上
+		glTexCoord2f(2.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
+		glTexCoord2f(2.0f, 2.0f); glVertex3f( dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右上
+		glTexCoord2f(0.0f, 2.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的左上
 		glEnd();
 
 		// 后面
-		glBindTexture(GL_TEXTURE_2D,texture[1]);
+		glBindTexture(GL_TEXTURE_2D,texture[2]);
 		glBegin(GL_QUADS);
-		glNormal3f(0,0,-1);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右下
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
-		glTexCoord2f(0.0f, 1.0f); glVertex3f( dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
+		glNormal3f(0,0,-2);
+		glTexCoord2f(2.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右下
+		glTexCoord2f(2.0f, 2.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
+		glTexCoord2f(0.0f, 2.0f); glVertex3f( dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
 		glTexCoord2f(0.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左下
 		glEnd();
 
 		// 顶面
 		glBindTexture(GL_TEXTURE_2D, texture[2]);
 		glBegin(GL_QUADS);
-		glNormal3f(0,1,0);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
-		glTexCoord2f(0.0f, 1.0f); glVertex3f( dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
+		glNormal3f(0,2,0);
+		glTexCoord2f(2.0f, 0.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
+		glTexCoord2f(2.0f, 2.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
+		glTexCoord2f(0.0f, 2.0f); glVertex3f( dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
 		glTexCoord2f(0.0f, 0.0f); glVertex3f( dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
 		glEnd();
 
 		// 底面
 		glBindTexture(GL_TEXTURE_2D, texture[3]);
 		glBegin(GL_QUADS);
-		glNormal3f(0,-1,0);
+		glNormal3f(0,-2,0);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
-		glTexCoord2f(1.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
-		glTexCoord2f(1.0f, 1.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
+		glTexCoord2f(2.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
+		glTexCoord2f(2.0f, 2.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
+		glTexCoord2f(0.0f, 2.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
 		glEnd();
 
 		// 右面
 		glBindTexture(GL_TEXTURE_2D, texture[4]);
 		glBegin(GL_QUADS);
-		glNormal3f(1,0,0);
+		glNormal3f(2,0,0);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右下
-		glTexCoord2f(1.0f, 0.0f); glVertex3f( dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
-		glTexCoord2f(1.0f, 1.0f); glVertex3f( dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的左上
-		glTexCoord2f(0.0f, 1.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
+		glTexCoord2f(2.0f, 0.0f); glVertex3f( dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
+		glTexCoord2f(2.0f, 2.0f); glVertex3f( dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的左上
+		glTexCoord2f(0.0f, 2.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
 		glEnd();
 
 		// 左面
 		glBindTexture(GL_TEXTURE_2D, texture[5]);
 		glBegin(GL_QUADS);
-		glNormal3f(-1,0,0);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左下
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右上
+		glNormal3f(-2,0,0);
+		glTexCoord2f(2.0f, 0.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左下
+		glTexCoord2f(2.0f, 2.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
+		glTexCoord2f(0.0f, 2.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的右上
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
 		glEnd();
 	}
 
+	cout<<"DrawARBox 耗时(ms):"<<GetSysTime_number()-iStartTime<<endl;
+
 	_bCreatedArBox=true;
 }
+
 void GlWndMain::DrawMainBox()
 {
 	cout<<__FUNCTION__<<endl;

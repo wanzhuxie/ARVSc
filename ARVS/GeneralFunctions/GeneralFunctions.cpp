@@ -91,3 +91,33 @@ bool CheckFileOpened (std::string strFilePath)
 	return FALSE;
 }
 
+void coutMsg(const std::string & msg,bool withEndLine)
+{
+	cout<<msg;
+
+	if(withEndLine)
+		cout<<endl;
+}
+void coutMsg(const int & msg,bool withEndLine)
+{
+	cout<<msg<<endl;
+
+	if(withEndLine)
+		cout<<endl;
+}
+void coutMsg(const float & msg,bool withEndLine)
+{
+	cout<<msg<<endl;
+
+	if(withEndLine)
+		cout<<endl;
+}
+void coutMsg(const double & msg,bool withEndLine)
+{
+	cout<<msg<<endl;
+
+	if(withEndLine)
+		cout<<endl;
+}
+
+

@@ -25,5 +25,9 @@ GENERALFUNCTIONS_EXPORT std::string IntToStr(int i);
 //检查文件是否在打开
 GENERALFUNCTIONS_EXPORT bool CheckFileOpened (std::string strFilePath);
 
+GENERALFUNCTIONS_EXPORT void coutMsg(const std::string & msg,bool withEndLine=true);
+GENERALFUNCTIONS_EXPORT void coutMsg(const int & msg,bool withEndLine=true);
+GENERALFUNCTIONS_EXPORT void coutMsg(const float & msg,bool withEndLine=true);
+GENERALFUNCTIONS_EXPORT void coutMsg(const double & msg,bool withEndLine=true);
 
 #endif // GENERALFUNCTIONS_H
