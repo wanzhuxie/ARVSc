@@ -27,7 +27,12 @@ using namespace std;
 
 float dARBoxWidth=0.4;
 
-
+double GlWndMain::ComputeThumbAngle( )
+{
+	Vector3 mThumbDir(_vecAllHandPoints[4]-_vecAllHandPoints[2]);
+	Vector3 mYDir(_vecAllHandPoints[9]-_vecAllHandPoints[0]);
+	return mThumbDir.angle(mYDir);
+}
 std::string ComputeStateSignal(const vector<int>&vecState)
 {
 	std::string strResult;
@@ -52,6 +57,7 @@ GlWndMain::GlWndMain(QWidget *parent)
 	,_iLastSumZ(0)
 	,_bShowHandPoints(true)
 	,_bARVideoOK(true)
+	,_iLastTime(0)
 {
 	
 	videoOfAR0=VideoCapture("Data/video0.mp4");
@@ -81,7 +87,7 @@ GlWndMain::GlWndMain(QWidget *parent)
 	{
 		showFullScreen();
 	}
-	startTimer(5);
+	startTimer(1);
 
 	//手坐标
 	if (!_handPointsCls.Init())
@@ -207,152 +213,139 @@ void GlWndMain::paintGL()
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
 	bool bAppearNewMarker=false;
-	if (1)
-	{
-		int width=this->width();
-		int height=this->height();
-		//_mMainCapture>>_mFrameImage ; 
+
+	int width=this->width();
+	int height=this->height();
 		
-		//if (_bShowHandPoints)
-		//{
-		//	for (int a=0;a<_vecAllHandPoints.size();a++)
-		//	{
-		//		int iEachRadius=_vecAllHandPoints[a].Z*0.1;
-		//		if (iEachRadius<0)
-		//			iEachRadius=-iEachRadius;
-		//		iEachRadius+=3;
-		//		cv::circle(_mFrameImage , Point(_vecAllHandPoints[a].X*2, _vecAllHandPoints[a].Y*2) , iEachRadius , cv::Scalar(200, 100, 100 ,0.5) , CV_FILLED);
-		//	}
-		//}
+	//if (_bShowHandPoints)
+	//{
+	//	for (int a=0;a<_vecAllHandPoints.size();a++)
+	//	{
+	//		int iEachRadius=_vecAllHandPoints[a].Z*0.1;
+	//		if (iEachRadius<0)
+	//			iEachRadius=-iEachRadius;
+	//		iEachRadius+=3;
+	//		cv::circle(_mFrameImage , Point(_vecAllHandPoints[a].X*2, _vecAllHandPoints[a].Y*2) , iEachRadius , cv::Scalar(200, 100, 100 ,0.5) , CV_FILLED);
+	//	}
+	//}
 
-		//cout<<"circle 耗时ms："<<GetSysTime_number()-iStartTime<<endl;
+	QImage buf((const unsigned char*)_mFrameImage.data, _mFrameImage.cols, _mFrameImage.rows, _mFrameImage.cols * _mFrameImage.channels(), QImage::Format_RGB888);
+	QImage mTex = QGLWidget::convertToGLFormat(buf);
+	mTex=mTex.rgbSwapped();
+	glLoadIdentity();
+	glPixelZoom((GLfloat)width/mTex.width(),(GLfloat)height/mTex.height());
+	glDrawPixels(mTex.width(),mTex.height(),GL_RGBA,GL_UNSIGNED_BYTE, mTex.bits());
+	glClear(GL_DEPTH_BUFFER_BIT);
 
-		QImage buf((const unsigned char*)_mFrameImage.data, _mFrameImage.cols, _mFrameImage.rows, _mFrameImage.cols * _mFrameImage.channels(), QImage::Format_RGB888);
-		QImage mTex = QGLWidget::convertToGLFormat(buf);
-		mTex=mTex.rgbSwapped();
-		glLoadIdentity();
-		glPixelZoom((GLfloat)width/mTex.width(),(GLfloat)height/mTex.height());
-		glDrawPixels(mTex.width(),mTex.height(),GL_RGBA,GL_UNSIGNED_BYTE, mTex.bits());
-		//glTexImage2D(GL_TEXTURE_2D,0,3,mTex.width(),mTex.height(),0,GL_BGR_EXT,GL_UNSIGNED_BYTE,mTex.bits());
-		glClear(GL_DEPTH_BUFFER_BIT);
-
-		if(_bOpenAR && _mFrameImage.data!=NULL)
+	if(_bOpenAR && _mFrameImage.data!=NULL)
+	{
+		if (m_recognizer.update(_mFrameImage, 100 , 10 )>0)
 		{
-			if (m_recognizer.update(_mFrameImage, 100 , 10 )>0)
+			float width=640;float height=480;float near_plane=0.1;float far_plane=100;
 			{
-				float width=640;float height=480;float near_plane=0.1;float far_plane=100;
+				float f_x = m_camera_matrix.at<float>(0,0);
+				float f_y = m_camera_matrix.at<float>(1,1);
+
+				float c_x = m_camera_matrix.at<float>(0,2);
+				float c_y = m_camera_matrix.at<float>(1,2);
+				/*
+				w近剪裁面的宽度
+				h近剪裁面的高度
+				n近剪裁面距离摄像机的距离
+				f远剪裁面距离摄像机的距离
+				*/
+				m_projection_matrix[0] = 2*f_x/width;
+				m_projection_matrix[1] = 0.0f;
+				m_projection_matrix[2] = 0.0f;
+				m_projection_matrix[3] = 0.0f;
+				m_projection_matrix[4] = 0.0f;
+				m_projection_matrix[5] = 2*f_y/height;
+				m_projection_matrix[6] = 0.0f;
+				m_projection_matrix[7] = 0.0f;
+				m_projection_matrix[8] = 1.0f - 2*c_x/width;
+				m_projection_matrix[9] = 2*c_y/height - 1.0f;
+				m_projection_matrix[10] = -(far_plane + near_plane)/(far_plane - near_plane);
+				m_projection_matrix[11] = -1.0f;
+				m_projection_matrix[12] = 0.0f;
+				m_projection_matrix[13] = 0.0f;
+				m_projection_matrix[14] = -2.0f*far_plane*near_plane/(far_plane - near_plane);
+				m_projection_matrix[15] = 0.0f;
+
+			}
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();//重置当前指定的矩阵为单位矩阵
+			//glMultMatrixf(m_projection_matrix);
+			glLoadMatrixf(m_projection_matrix);
+
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+			glEnable(GL_DEPTH_TEST);
+			glShadeModel(GL_FLAT); //some model / light stuff  GL_SMOOTH
+			vector<Marker>& markers = m_recognizer.getMarkers();
+			Mat rotation, translation;
+			for (int i = 0; i < markers.size(); ++i)
+			{
+				Mat rot_vec;
+				bool res = solvePnP(_mMarkerCorners,		//i世界坐标系下的控制点的坐标
+					markers[i].m_corners,							//i图像坐标系下对应的控制点的坐标
+					m_camera_matrix,								//i相机内参
+					m_dist_coeff,									//i相机畸变
+					rot_vec,										//o旋转向量
+					translation);											//o平移向量
+
+				Rodrigues(rot_vec, rotation);				//旋转向量变为旋转矩阵
+				//cout<<"translation..."<<endl<<translation<<endl;
+				//cout<<"rot_vec..."<<endl<<rot_vec<<endl;
+				//cout<<"rotation..."<<endl<<rotation<<endl;
+
+				//绕X轴旋转180度，从OpenCV坐标系变换为OpenGL坐标系
+				static double d[] = 
 				{
-					float f_x = m_camera_matrix.at<float>(0,0);
-					float f_y = m_camera_matrix.at<float>(1,1);
-
-					float c_x = m_camera_matrix.at<float>(0,2);
-					float c_y = m_camera_matrix.at<float>(1,2);
-					/*
-					w近剪裁面的宽度
-					h近剪裁面的高度
-					n近剪裁面距离摄像机的距离
-					f远剪裁面距离摄像机的距离
-					*/
-					m_projection_matrix[0] = 2*f_x/width;
-					m_projection_matrix[1] = 0.0f;
-					m_projection_matrix[2] = 0.0f;
-					m_projection_matrix[3] = 0.0f;
-					m_projection_matrix[4] = 0.0f;
-					m_projection_matrix[5] = 2*f_y/height;
-					m_projection_matrix[6] = 0.0f;
-					m_projection_matrix[7] = 0.0f;
-					m_projection_matrix[8] = 1.0f - 2*c_x/width;
-					m_projection_matrix[9] = 2*c_y/height - 1.0f;
-					m_projection_matrix[10] = -(far_plane + near_plane)/(far_plane - near_plane);
-					m_projection_matrix[11] = -1.0f;
-					m_projection_matrix[12] = 0.0f;
-					m_projection_matrix[13] = 0.0f;
-					m_projection_matrix[14] = -2.0f*far_plane*near_plane/(far_plane - near_plane);
-					m_projection_matrix[15] = 0.0f;
-
-				}
-				glMatrixMode(GL_PROJECTION);
-				glLoadIdentity();//重置当前指定的矩阵为单位矩阵
-				//glMultMatrixf(m_projection_matrix);
-				glLoadMatrixf(m_projection_matrix);
-
-				glMatrixMode(GL_MODELVIEW);
-				glLoadIdentity();
-				glEnable(GL_DEPTH_TEST);
-				glShadeModel(GL_SMOOTH); //some model / light stuff
-				vector<Marker>& markers = m_recognizer.getMarkers();
-				Mat rotation, translation;
-				for (int i = 0; i < markers.size(); ++i)
-				{
-					//markers[i].estimateTransformToCamera(_mMarkerCorners, m_camera_matrix, m_dist_coeff, r, t);
-					Mat rot_vec;
-					bool res = solvePnP(_mMarkerCorners,		//i世界坐标系下的控制点的坐标
-						markers[i].m_corners,							//i图像坐标系下对应的控制点的坐标
-						m_camera_matrix,								//i相机内参
-						m_dist_coeff,									//i相机畸变
-						rot_vec,										//o旋转向量
-						translation);											//o平移向量
-
-					Rodrigues(rot_vec, rotation);				//旋转向量变为旋转矩阵
-					//cout<<"translation..."<<endl<<translation<<endl;
-					//cout<<"rot_vec..."<<endl<<rot_vec<<endl;
-					//cout<<"rotation..."<<endl<<rotation<<endl;
-
-					//绕X轴旋转180度，从OpenCV坐标系变换为OpenGL坐标系
-					static double d[] = 
-					{
-						1, 0, 0,
-						0, -1, 0,
-						0, 0, -1
-					};
-					Mat_<double> rx(3, 3, d);
-					rotation = rx*rotation;
-					translation = rx*translation;
+					1, 0, 0,
+					0, -1, 0,
+					0, 0, -1
+				};
+				Mat_<double> rx(3, 3, d);
+				rotation = rx*rotation;
+				translation = rx*translation;
 
 
-					m_model_view_matrix[0] =		rotation.at<double>(0,0);
-					m_model_view_matrix[1] =		rotation.at<double>(1,0);
-					m_model_view_matrix[2] =		rotation.at<double>(2,0);
-					m_model_view_matrix[3] =		0.0f;
+				m_model_view_matrix[0] =		rotation.at<double>(0,0);
+				m_model_view_matrix[1] =		rotation.at<double>(1,0);
+				m_model_view_matrix[2] =		rotation.at<double>(2,0);
+				m_model_view_matrix[3] =		0.0f;
 
-					m_model_view_matrix[4] =		rotation.at<double>(0,1);
-					m_model_view_matrix[5] =		rotation.at<double>(1,1);
-					m_model_view_matrix[6] =		rotation.at<double>(2,1);
-					m_model_view_matrix[7] =		0.0f;
+				m_model_view_matrix[4] =		rotation.at<double>(0,1);
+				m_model_view_matrix[5] =		rotation.at<double>(1,1);
+				m_model_view_matrix[6] =		rotation.at<double>(2,1);
+				m_model_view_matrix[7] =		0.0f;
 
-					m_model_view_matrix[8] =		rotation.at<double>(0,2);
-					m_model_view_matrix[9] =		rotation.at<double>(1,2);
-					m_model_view_matrix[10] =		rotation.at<double>(2,2);
-					m_model_view_matrix[11] =		0.0f;
+				m_model_view_matrix[8] =		rotation.at<double>(0,2);
+				m_model_view_matrix[9] =		rotation.at<double>(1,2);
+				m_model_view_matrix[10] =		rotation.at<double>(2,2);
+				m_model_view_matrix[11] =		0.0f;
 
-					m_model_view_matrix[12] =		translation.at<double>(0, 0)+stepRotX;
-					m_model_view_matrix[13] =		translation.at<double>(1, 0)+stepRotY;
-					m_model_view_matrix[14] =		translation.at<double>(2, 0)+stepRotZ;
-					m_model_view_matrix[15] =		1.0f;
+				m_model_view_matrix[12] =		translation.at<double>(0, 0)+stepRotX;
+				m_model_view_matrix[13] =		translation.at<double>(1, 0)+stepRotY;
+				m_model_view_matrix[14] =		translation.at<double>(2, 0)+stepRotZ;
+				m_model_view_matrix[15] =		1.0f;
 
 					
-					glLoadMatrixf(m_model_view_matrix);////把当前矩阵GL_MODELVIEW的16个值设置为指定的值
+				glLoadMatrixf(m_model_view_matrix);////把当前矩阵GL_MODELVIEW的16个值设置为指定的值
 
-					DrawARBox();
-					
-					bAppearNewMarker=true;
-
-					cout<<"更新视图耗时ms："<<GetSysTime_number()-iStartTime<<endl;
+				DrawARBox();
+				bAppearNewMarker=true;
 
 
-					string strPicExportFolder=m_recognizer.GetExportPicFolder();
-					if (strPicExportFolder!=""&&_access(strPicExportFolder.c_str() , 0)==0)
-					{
-						QPixmap::grabWindow(this->winId()).save((strPicExportFolder+"\\result.png").c_str(),"png");
-					}
+				string strPicExportFolder=m_recognizer.GetExportPicFolder();
+				if (strPicExportFolder!=""&&_access(strPicExportFolder.c_str() , 0)==0)
+				{
+					QPixmap::grabWindow(this->winId()).save((strPicExportFolder+"\\result.png").c_str(),"png");
 				}
 			}
 		}
-
 	}
 
-
-	//if (!_bRun){	return;}
 
 	if (!_bPause)//Pause
 	{
@@ -367,14 +360,6 @@ void GlWndMain::paintGL()
 	glRotatef(_dRotY,0,1,0);
 	glRotatef(_dRotZ,0,0,1);
 
-	if (_bFog)
-	{
-		glEnable(GL_FOG);
-	}
-	else
-	{
-		glDisable(GL_FOG);
-	}
 
 	if (_bHyaline)
 	{
@@ -623,9 +608,9 @@ void GlWndMain::timerEvent(QTimerEvent *)
 //计时回调
 void GlWndMain::timerEvent(QTimerEvent *)
 {
-	//获取当前屏幕像素
-	int cxScreen = GetSystemMetrics (SM_CXSCREEN) ;  // wide
-	int cyScreen = GetSystemMetrics (SM_CYSCREEN) ;  // high
+		int iCurTime=GetSysTime_number();
+		cout<<"回调 耗时(ms):"<<iCurTime-_iLastTime<<endl;
+		_iLastTime=iCurTime;
 
 	//借助MediaPip的Python版本完成手部关键点识别
 	_mMainCapture.read(_mFrameImage); 
@@ -642,7 +627,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	{
 		rename("Data\\CreatingImage" , "Data\\CreatedImage");
 	}
-	//Sleep(100);
 	_vecAllHandPoints=_handPointsCls.GetAllHandPoints();
 	if(_handPointsCls.GetHandCount()==0)
 	{
@@ -700,7 +684,13 @@ void GlWndMain::timerEvent(QTimerEvent *)
 				_CurState=OpState::FrontView;
 			}
 		}
-
+		else		if (strCurFingereState=="11111"&&_CurState==OpState::FrontView)
+		{
+			_dRotX=0;
+			_dRotY=90;
+			_dRotZ=0;
+			_iFrontViewIndex=5;
+		}
 		_strLastFingerState=strCurFingereState;
 	}
 	else
@@ -782,7 +772,7 @@ void GlWndMain::timerEvent(QTimerEvent *)
 				_dRotZ=0;
 				_iFrontViewIndex=6;
 			}
-			_dZoom=-5;
+			_dZoom=-3;
 			//if (_iFrontViewIndex>=1&&_iFrontViewIndex<=6)
 			//{
 			//	_CurState=OpState::Adapting;
@@ -879,25 +869,39 @@ void GlWndMain::timerEvent(QTimerEvent *)
 		{
 			float dStep=0.1;
 			float dDiff=0;
+			//float dMaxStep=dStep*3;
+			//float dMinStep=dStep*0.5;
+			//double dAngle=ComputeThumbAngle();
+			//float dDiffTemp=dAngle/90*dMaxStep;
+			//if(dDiffTemp<dMinStep) dDiffTemp= dMinStep;
+			//if(dDiffTemp>dMaxStep) dDiffTemp= dMaxStep;
 
-			if (vecFingerState[0]!=1
-				&&vecFingerState[1]==1
+			if (vecFingerState[0]!=1&&
+				vecFingerState[1]==1
 				&&vecFingerState[2]!=1
 				&&vecFingerState[3]!=1
 				&&vecFingerState[4]!=1)
 			{
-				dDiff=dStep;
+				dDiff=-dStep;//-dDiffTemp;
 			}
-			if (vecFingerState[0]==1
-				&&vecFingerState[1]==1
+			if (vecFingerState[0]==1&&
+				vecFingerState[1]==1
 				&&vecFingerState[2]!=1
 				&&vecFingerState[3]!=1
 				&&vecFingerState[4]!=1)
 			{
-				dDiff=-dStep;
+				dDiff=dStep;//dDiffTemp;
 			}
 
 			_dZoom+=dDiff;
+			if (_dZoom>-1.5)
+			{
+				_dZoom=-1.5;
+			}
+			if (_dZoom<-15)
+			{
+				_dZoom=-15;
+			}
 		}
 	}
 
@@ -906,7 +910,7 @@ void GlWndMain::timerEvent(QTimerEvent *)
 
 bool ImageCVToGL(const Mat & mImageCV , GLubyte * & pixels)
 {
-	int iTime1=GetSysTime_number();
+	//int iTime1=GetSysTime_number();
 
 	int imageWidth=mImageCV.cols;
 	int imageHeight=mImageCV.rows;
@@ -914,8 +918,8 @@ bool ImageCVToGL(const Mat & mImageCV , GLubyte * & pixels)
 	pixels=new GLubyte[iSize];
 	memcpy(pixels , mImageCV.data , iSize*sizeof(unsigned char));
 
-	int iTime2=GetSysTime_number();
-	cout<<"ImageCVToGL time taken(ms):"<<iTime2-iTime1<<endl;
+	//int iTime2=GetSysTime_number();
+	//cout<<"ImageCVToGL time taken(ms):"<<iTime2-iTime1<<endl;
 
 	return true;
 }
@@ -997,7 +1001,7 @@ void GlWndMain::loadGLTextures()
 	}
 	glEnable(GL_TEXTURE_2D);
 }
-void GlWndMain::DrawARBox2()
+void GlWndMain::DrawARBox()
 {
 	//glTexImage2D在创建图片纹理时，整体变得很暗，所以先全部使用视频贴图
 	//cout<<__FUNCTION__<<endl;
@@ -1006,12 +1010,15 @@ void GlWndMain::DrawARBox2()
 
 	if(_bARVideoOK)
 	{
+		int iTime1=GetSysTime_number();
 		if(videoOfAR0.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video0)	videoOfAR0.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR0>>_mFaceFrame0 ; 
 		if(videoOfAR1.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video1)	videoOfAR1.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR1>>_mFaceFrame1 ; 
 		if(videoOfAR2.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video2)	videoOfAR2.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR2>>_mFaceFrame2 ; 
 		if(videoOfAR3.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video3)	videoOfAR3.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR3>>_mFaceFrame3 ; 
 		if(videoOfAR4.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video4)	videoOfAR4.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR4>>_mFaceFrame4 ; 
 		if(videoOfAR5.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video5)	videoOfAR5.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR5>>_mFaceFrame5 ; 
+		//int iTime2=GetSysTime_number();
+		//cout<<"读取帧数据 耗时(ms):"<<iTime2-iTime1<<endl;
 
 		GLubyte*imageData0=NULL;ImageCVToGL(_mFaceFrame0,imageData0);
 		GLubyte*imageData1=NULL;ImageCVToGL(_mFaceFrame1,imageData1);
@@ -1019,6 +1026,8 @@ void GlWndMain::DrawARBox2()
 		GLubyte*imageData3=NULL;ImageCVToGL(_mFaceFrame3,imageData3);
 		GLubyte*imageData4=NULL;ImageCVToGL(_mFaceFrame4,imageData4);
 		GLubyte*imageData5=NULL;ImageCVToGL(_mFaceFrame5,imageData5);
+		//int iTime21=GetSysTime_number();
+		//cout<<"ImageCVToGL 耗时(ms):"<<iTime21-iTime2<<endl;
 
 		GLuint videoTextur0;		glGenTextures(1, &videoTextur0);
 		GLuint videoTextur1;		glGenTextures(1, &videoTextur1);
@@ -1026,9 +1035,8 @@ void GlWndMain::DrawARBox2()
 		GLuint videoTextur3;		glGenTextures(1, &videoTextur3);
 		GLuint videoTextur4;		glGenTextures(1, &videoTextur4);
 		GLuint videoTextur5;		glGenTextures(1, &videoTextur5);
-		
-		int iTime2=GetSysTime_number();
-		cout<<"创建贴图 耗时(ms):"<<iTime2-iStartTime<<endl;
+		//int iTime22=GetSysTime_number();
+		//cout<<"glGenTextures 耗时(ms):"<<iTime22-iTime21<<endl;
 
 		// 前面
 		{
@@ -1036,10 +1044,10 @@ void GlWndMain::DrawARBox2()
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			int iTime5=GetSysTime_number();
+			//int iTime5=GetSysTime_number();
 			glTexImage2D(GL_TEXTURE_2D, 0, 3, _mFaceFrame0.cols, _mFaceFrame0.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, imageData0);
-			int iTime6=GetSysTime_number();
-			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+			//int iTime6=GetSysTime_number();
+			//cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, videoTextur0);
@@ -1051,8 +1059,8 @@ void GlWndMain::DrawARBox2()
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, dARBoxWidth); // 纹理和四边形的左上
 		glEnd();
 
-		int iTime3=GetSysTime_number();
-		cout<<"面0 耗时(ms):"<<iTime3-iTime2<<endl;
+		//int iTime3=GetSysTime_number();
+		//cout<<"面0 耗时(ms):"<<iTime3-iTime22<<endl;
 
 		// 后面
 		{
@@ -1060,10 +1068,10 @@ void GlWndMain::DrawARBox2()
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			int iTime5=GetSysTime_number();
+			//int iTime5=GetSysTime_number();
 			glTexImage2D(GL_TEXTURE_2D, 0, 3, _mFaceFrame1.cols, _mFaceFrame1.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, imageData1);
-			int iTime6=GetSysTime_number();
-			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+			//int iTime6=GetSysTime_number();
+			//cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
 		}
 
 		glBindTexture(GL_TEXTURE_2D,videoTextur1);
@@ -1075,8 +1083,8 @@ void GlWndMain::DrawARBox2()
 		glTexCoord2f(0.0f, 0.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左下
 		glEnd();
 
-		int iTime4=GetSysTime_number();
-		cout<<"面1 耗时(ms):"<<iTime4-iTime3<<endl;
+		//int iTime4=GetSysTime_number();
+		//cout<<"面1 耗时(ms):"<<iTime4-iTime3<<endl;
 
 		// 顶面
 		{
@@ -1084,10 +1092,10 @@ void GlWndMain::DrawARBox2()
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			int iTime5=GetSysTime_number();
+			//int iTime5=GetSysTime_number();
 			glTexImage2D(GL_TEXTURE_2D, 0, 3, _mFaceFrame2.cols, _mFaceFrame2.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, imageData2);
-			int iTime6=GetSysTime_number();
-			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+			//int iTime6=GetSysTime_number();
+			//cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, videoTextur2);
@@ -1099,8 +1107,8 @@ void GlWndMain::DrawARBox2()
 		glTexCoord2f(0.0f, 0.0f); glVertex3f( dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的右上
 		glEnd();
 
-		int iTime5=GetSysTime_number();
-		cout<<"面2 耗时(ms):"<<iTime5-iTime4<<endl;
+		//int iTime5=GetSysTime_number();
+		//cout<<"面2 耗时(ms):"<<iTime5-iTime4<<endl;
 
 		// 底面
 		{
@@ -1108,10 +1116,10 @@ void GlWndMain::DrawARBox2()
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			int iTime5=GetSysTime_number();
+			//int iTime5=GetSysTime_number();
 			glTexImage2D(GL_TEXTURE_2D, 0, 3, _mFaceFrame3.cols, _mFaceFrame3.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, imageData3);
-			int iTime6=GetSysTime_number();
-			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+			//int iTime6=GetSysTime_number();
+			//cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, videoTextur3);
@@ -1123,8 +1131,8 @@ void GlWndMain::DrawARBox2()
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(-dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的右下
 		glEnd();
 
-		int iTime6=GetSysTime_number();
-		cout<<"面3 耗时(ms):"<<iTime6-iTime5<<endl;
+		//int iTime6=GetSysTime_number();
+		//cout<<"面3 耗时(ms):"<<iTime6-iTime5<<endl;
 
 		// 右面
 		{
@@ -1132,10 +1140,10 @@ void GlWndMain::DrawARBox2()
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			int iTime5=GetSysTime_number();
+			//int iTime5=GetSysTime_number();
 			glTexImage2D(GL_TEXTURE_2D, 0, 3, _mFaceFrame4.cols, _mFaceFrame4.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, imageData4);
-			int iTime6=GetSysTime_number();
-			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+			//int iTime6=GetSysTime_number();
+			//cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, videoTextur4);
@@ -1147,8 +1155,8 @@ void GlWndMain::DrawARBox2()
 		glTexCoord2f(0.0f, 1.0f); glVertex3f( dARBoxWidth, -dARBoxWidth, dARBoxWidth); // 纹理和四边形的左下
 		glEnd();
 
-		int iTime7=GetSysTime_number();
-		cout<<"面4 耗时(ms):"<<iTime7-iTime6<<endl;
+		//int iTime7=GetSysTime_number();
+		//cout<<"面4 耗时(ms):"<<iTime7-iTime6<<endl;
 
 		// 左面
 		{
@@ -1156,10 +1164,10 @@ void GlWndMain::DrawARBox2()
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			int iTime5=GetSysTime_number();
+			//int iTime5=GetSysTime_number();
 			glTexImage2D(GL_TEXTURE_2D, 0, 3, _mFaceFrame5.cols, _mFaceFrame5.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, imageData5);
-			int iTime6=GetSysTime_number();
-			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
+			//int iTime6=GetSysTime_number();
+			//cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, videoTextur5);
@@ -1171,8 +1179,8 @@ void GlWndMain::DrawARBox2()
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(-dARBoxWidth, dARBoxWidth, -dARBoxWidth); // 纹理和四边形的左上
 		glEnd();
 
-		int iTime8=GetSysTime_number();
-		cout<<"面5 耗时(ms):"<<iTime8-iTime7<<endl;
+		//int iTime8=GetSysTime_number();
+		//cout<<"面5 耗时(ms):"<<iTime8-iTime7<<endl;
 
 		glDeleteTextures(1, &videoTextur0);
 		glDeleteTextures(1, &videoTextur1);
@@ -1188,8 +1196,8 @@ void GlWndMain::DrawARBox2()
 		free(imageData4);
 		free(imageData5);
 
-		int iTime9=GetSysTime_number();
-		cout<<"内存管理 耗时(ms):"<<iTime9-iTime8<<endl;
+		//int iTime9=GetSysTime_number();
+		//cout<<"内存管理 耗时(ms):"<<iTime9-iTime8<<endl;
 
 	}
 
@@ -1197,7 +1205,7 @@ void GlWndMain::DrawARBox2()
 
 	_bCreatedArBox=true;
 }
-void GlWndMain::DrawARBox()
+void GlWndMain::DrawARBox2()
 {
 	//glTexImage2D在创建图片纹理时，整体变得很暗，所以先全部使用视频贴图
 	//cout<<__FUNCTION__<<endl;
@@ -1214,8 +1222,6 @@ void GlWndMain::DrawARBox()
 		QImage mBuf5, mTex5;
 		if (1)
 		{
-			int iTime1=GetSysTime_number();
-
 			if(videoOfAR0.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video0)	videoOfAR0.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR0>>_mFaceFrame0 ; 
 			if(videoOfAR1.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video1)	videoOfAR1.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR1>>_mFaceFrame1 ; 
 			if(videoOfAR2.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video2)	videoOfAR2.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR2>>_mFaceFrame2 ; 
@@ -1223,10 +1229,6 @@ void GlWndMain::DrawARBox()
 			if(videoOfAR4.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video4)	videoOfAR4.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR4>>_mFaceFrame4 ; 
 			if(videoOfAR5.get(CV_CAP_PROP_POS_FRAMES) == _iFrameCount_Video5)	videoOfAR5.set(CV_CAP_PROP_POS_FRAMES, 0);		videoOfAR5>>_mFaceFrame5 ; 
 
-			int iTime2=GetSysTime_number();
-			cout<<"read FaceFrame 耗时ms:"<<iTime2-iTime2<<endl;
-
-			//cvtColor(_mFaceFrame0, _mFaceFrame0, CV_BGR2RGB);
 			//将Mat类型转换成QImage
 			mBuf0 = QImage((const unsigned char*)_mFaceFrame0.data, _mFaceFrame0.cols, _mFaceFrame0.rows, _mFaceFrame0.cols * _mFaceFrame0.channels(), QImage::Format_RGB888);
 			mBuf1 = QImage((const unsigned char*)_mFaceFrame1.data, _mFaceFrame1.cols, _mFaceFrame1.rows, _mFaceFrame1.cols * _mFaceFrame1.channels(), QImage::Format_RGB888);
@@ -1234,8 +1236,6 @@ void GlWndMain::DrawARBox()
 			mBuf3 = QImage((const unsigned char*)_mFaceFrame3.data, _mFaceFrame3.cols, _mFaceFrame3.rows, _mFaceFrame3.cols * _mFaceFrame3.channels(), QImage::Format_RGB888);
 			mBuf4 = QImage((const unsigned char*)_mFaceFrame4.data, _mFaceFrame4.cols, _mFaceFrame4.rows, _mFaceFrame4.cols * _mFaceFrame4.channels(), QImage::Format_RGB888);
 			mBuf5 = QImage((const unsigned char*)_mFaceFrame5.data, _mFaceFrame5.cols, _mFaceFrame5.rows, _mFaceFrame5.cols * _mFaceFrame5.channels(), QImage::Format_RGB888);
-			int iTime3=GetSysTime_number();
-			cout<<"将Mat类型转换成QImage 耗时ms:"<<iTime3-iTime2<<endl;
 			if (mBuf0.isNull())	return;
 			if (mBuf1.isNull())	return;
 			if (mBuf2.isNull())	return;
@@ -1248,8 +1248,6 @@ void GlWndMain::DrawARBox()
 			mTex3 = QGLWidget::convertToGLFormat(mBuf3);
 			mTex4 = QGLWidget::convertToGLFormat(mBuf4);
 			mTex5 = QGLWidget::convertToGLFormat(mBuf5);
-			int iTime4=GetSysTime_number();
-			cout<<"convertToGLFormat 耗时ms:"<<iTime4-iTime3<<endl;
 		}
 		//else
 		//{
@@ -1279,10 +1277,7 @@ void GlWndMain::DrawARBox()
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			int iTime5=GetSysTime_number();
 			glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex0.width(), mTex0.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex0.bits());
-			int iTime6=GetSysTime_number();
-			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, videoTextur0);
@@ -1301,10 +1296,7 @@ void GlWndMain::DrawARBox()
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			int iTime5=GetSysTime_number();
 			glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex1.width(), mTex1.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex1.bits());
-			int iTime6=GetSysTime_number();
-			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
 		}
 
 		glBindTexture(GL_TEXTURE_2D,videoTextur1);
@@ -1323,10 +1315,7 @@ void GlWndMain::DrawARBox()
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			int iTime5=GetSysTime_number();
 			glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex2.width(), mTex2.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex2.bits());
-			int iTime6=GetSysTime_number();
-			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, videoTextur2);
@@ -1345,10 +1334,7 @@ void GlWndMain::DrawARBox()
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			int iTime5=GetSysTime_number();
 			glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex3.width(), mTex3.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex3.bits());
-			int iTime6=GetSysTime_number();
-			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, videoTextur3);
@@ -1367,10 +1353,7 @@ void GlWndMain::DrawARBox()
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			int iTime5=GetSysTime_number();
 			glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex4.width(), mTex4.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex4.bits());
-			int iTime6=GetSysTime_number();
-			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, videoTextur4);
@@ -1389,10 +1372,7 @@ void GlWndMain::DrawARBox()
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-			int iTime5=GetSysTime_number();
 			glTexImage2D(GL_TEXTURE_2D, 0, 3, mTex5.width(), mTex5.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, mTex5.bits());
-			int iTime6=GetSysTime_number();
-			cout<<"glTexImage2D 耗时ms:"<<iTime6-iTime5<<endl;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, videoTextur5);

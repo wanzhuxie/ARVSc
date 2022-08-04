@@ -53,6 +53,7 @@ private:
 	void resizeGL(int w, int h);//处理窗口大小变化，w和h是新状态下的宽和高，完成后自动刷新屏幕
 	void timerEvent(QTimerEvent *);//实现窗口部件的定时操作
 
+	double ComputeThumbAngle( );
 
 	void loadGLTextures();//载入纹理
 
@@ -136,6 +137,8 @@ private:
 	OpState _CurState;
 	std::string _strLastFingerState;
 	bool _bCreatedArBox;
+
+	int _iLastTime;
 };
 
 #endif // GlWndMain_H

@@ -9,7 +9,6 @@
 #include "Plane.h"
 using namespace std;
 
-
 struct Point3D
 {
 	float X;
@@ -32,6 +31,12 @@ struct Point3D
 	{
 		return sqrtf((this->X - mOtherPos.X)*(this->X - mOtherPos.X)+(this->Y - mOtherPos.Y)*(this->Y - mOtherPos.Y)+(this->Z - mOtherPos.Z)*(this->Z - mOtherPos.Z));
 	}
+
+	Vector3 operator-(const Point3D & mOtherPos) 
+	{
+		return Vector3(this->X-mOtherPos.X , this->Y-mOtherPos.Y , this->Z-mOtherPos.Z);
+	}
+
 };
 struct Vector2D
 {
