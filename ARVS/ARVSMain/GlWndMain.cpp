@@ -96,6 +96,10 @@ GlWndMain::GlWndMain(QWidget *parent)
 		return ;
 	}
 
+	//获取当前屏幕像素
+	_iScreenWidth = GetSystemMetrics (SM_CXSCREEN) ;  // wide
+	_iScreenHight = GetSystemMetrics (SM_CYSCREEN) ;  // high
+
 }
 GlWndMain::~GlWndMain()
 {
@@ -406,206 +410,6 @@ void GlWndMain::paintGL()
 }
 
 //计时回调
-/*
-void GlWndMain::timerEvent(QTimerEvent *)
-{
-	//获取当前屏幕像素
-	int cxScreen = GetSystemMetrics (SM_CXSCREEN) ;  // wide
-	int cyScreen = GetSystemMetrics (SM_CYSCREEN) ;  // high
-	//借助MediaPip的Python版本完成手部关键点识别
-	_mMainCapture.read(_mFrameImage); 
-	if (_access("Data\\CreatedImage" , 0)==0)
-	{
-		rename("Data\\CreatedImage" , "Data\\CreatingImage");
-	}
-	cv::flip(_mFrameImage,_mFrameImage,1);
-	cv::Mat mTransBtidgeImage=_mFrameImage.clone();
-	cv::resize(mTransBtidgeImage,mTransBtidgeImage,cv::Size(320,240));
-	//cvtColor(mTransBtidgeImage,mTransBtidgeImage,CV_BGR2GRAY);
-	imwrite("Data\\TempImg.jpg",mTransBtidgeImage);
-	if (_access("Data\\CreatingImage" , 0)==0)
-	{
-		rename("Data\\CreatingImage" , "Data\\CreatedImage");
-	}
-	//Sleep(100);
-	_vecAllHandPoints=_handPointsCls.GetAllHandPoints();
-	if(_handPointsCls.GetHandCount()==0)
-	{
-		updateGL();
-		return;
-	}
-	Point3D mTipPos_img=_handPointsCls.GetTipOfIndexFinger(false);
-	if (mTipPos_img.X<0||mTipPos_img.Y<0)
-	{
-		return;
-	}
-	std::string vecFingerState=_handPointsCls.GetFingerState(false);
-	//cout<<"FingerState: "<<vecFingerState<<endl;
-	Point3D mTipPos;
-	{
-		//转换到屏幕坐标
-		//图像[640,480]中有效区域[140,500][100,380]，映射到屏幕上的区域[0,cxScreen][0,cyScreen]
-		int iImgRange_Xmin=100;
-		int iImgRange_Xmax=540;
-		int iImgRange_Ymin=110;
-		int iImgRange_Ymax=360;
-		int iRangeWidth=iImgRange_Xmax-iImgRange_Xmin;
-		int iRangeHight=iImgRange_Ymax-iImgRange_Ymin;
-		mTipPos.X=(mTipPos_img.X-iImgRange_Xmin)*cxScreen/iRangeWidth;
-		mTipPos.Y=(mTipPos_img.Y-iImgRange_Ymin)*cyScreen/iRangeHight;
-		if(mTipPos.X <0)
-			mTipPos.X=0;
-		if (mTipPos.X>cxScreen)
-			mTipPos.X=cxScreen;
-		if(mTipPos.Y <0)
-			mTipPos.Y=0;
-		if (mTipPos.Y>cyScreen)
-			mTipPos.Y=cyScreen;
-	}
-	Point3D mMousePos;
-	mMousePos.X = _mLastPos.X + (mTipPos.X - _mLastPos.X) / 5;
-	mMousePos.Y = _mLastPos.Y + (mTipPos.Y - _mLastPos.Y) / 5;
-	//删除微小移动误差
-	float fDiff=mMousePos.DistanceTo(_mLastPos);
-	//cout<<"error Diff:"<<fDiff<<endl;
-	if (fDiff<3)
-	{
-		return;
-	}
-	GLfloat dx = GLfloat(mMousePos.X-_mLastPos.X)/width();
-	GLfloat dy = GLfloat(mMousePos.Y-_mLastPos.Y)/height();
-	_mLastPos=mMousePos;
-	cout<<"dx"<<dx<<endl;
-	cout<<"dy"<<dy<<endl;
-	int iSumZ=0;
-	for(int a=0;a<_vecAllHandPoints.size();a++)
-	{
-		iSumZ+=_vecAllHandPoints[a].Z;
-	}
-	//if(_iLastSumZ!=0)
-	//{
-	//	double dZoomDiff=double(iSumZ-_iLastSumZ)/100;
-	//	if (abs(dZoomDiff)>0.05)
-	//	{
-	//		_dZoom-=dZoomDiff;
-	//		if(_dZoom>-2) _dZoom=-2;
-	//		if(_dZoom<-12) _dZoom=-12;
-	//	}
-	//}
-	//_iLastSumZ=iSumZ;
-	//状态变迁
-	if (vecFingerState=="00000")
-	{
-		if (_bPause==true)
-		{
-			return;
-		}
-		_bPause=true;
-		if (_CurState==OpState::Initial)
-		{
-			_CurState=OpState::FrontView;
-		}
-		else if (_CurState==OpState::Adjustment)
-		{
-			_CurState=OpState::FrontView;
-		}
-		else if (_CurState==OpState::FrontView)
-		{
-			_CurState=OpState::Adjustment;
-		}
-		return;
-	}
-	else
-	{
-		_bPause=false;
-		cout<<_CurState<<endl;
-		//FrontView
-		if (_CurState==OpState::Initial)
-		{
-			_CurState=OpState::FrontView;
-		}
-		if (_CurState==OpState::FrontView)
-		{
-			_dMoveX =0;
-			_dMoveY =0;
-			//thump, index finger
-			if (vecFingerState=="01000")
-			{
-				_dRotX=0;
-				_dRotY=0;
-				_iFrontViewIndex=1;
-			}
-			else	if (vecFingerState=="01100")
-			{
-				_dRotX=90;
-				_dRotY=0;
-				_iFrontViewIndex=2;
-			}
-			else	if (vecFingerState=="01110")
-			{
-				_dRotX=180;
-				_dRotY=0;
-				_iFrontViewIndex=3;
-			}
-			else	if (vecFingerState=="01111")
-			{
-				_dRotX=270;
-				_dRotY=0;
-				_iFrontViewIndex=4;
-			}
-			else	if (vecFingerState=="11111")
-			{
-				_dRotX=-90;
-				_dRotY=90;
-				_iFrontViewIndex=5;
-			}
-			else	if (vecFingerState=="10001")
-			{
-				_dRotX=0;
-				_dRotY=-90;
-				_iFrontViewIndex=6;
-			}
-	
-			//if (_iFrontViewIndex>=1&&_iFrontViewIndex<=6)
-			//{
-			//	_CurState=OpState::Adapting;
-			//}
-		}
-		else	if (_CurState==OpState::Adjustment)
-		{
-			//不是正视
-			_iFrontViewIndex=0;
-			if (vecFingerState=="01100")
-			{
-				_dMoveX += dx*5;
-				_dMoveY -= dy*5;
-			}
-			else	if (vecFingerState=="01110")
-			{
-				_dRotX -= dy*100;
-				_dRotY += dx*100;
-			}
-			//else	if (vecFingerState=="01111")
-			//{
-			//	GLfloat zValue = dx+(-dy);
-			//	_dZoom += zValue*2;
-			//}
-			//if (_dZoom<0.1)							_dZoom=0.1;
-			//if (_dZoom>1.0)							_dZoom = 1.0;
-			//if (_dMoveX<0)							_dMoveX=0;
-			//if (_dMoveX>width())				_dMoveX=width();
-			//if (_dMoveY<0)							_dMoveY=0;
-			//if ((-_dMoveY)>height())		_dMoveY=- height();
-			//if (_dRotX>360)							_dRotX=int(_dRotX)%360;
-			//if (_dRotX<-360)						_dRotX=int(_dRotX)%360;
-			//if (_dRotY>360)							_dRotY=int(_dRotY)%360;
-			//if (_dRotY<-360)						_dRotY=int(_dRotY)%360;
-		}
-	}
-	updateGL();
-}
-*/
-//计时回调
 void GlWndMain::timerEvent(QTimerEvent *)
 {
 		int iCurTime=GetSysTime_number();
@@ -638,6 +442,7 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	{
 		return;
 	}
+	//5 number(0 or 1) :thumb, index finger, middle finger, ring finger, little finger
 	vector<int> vecFingerState=_handPointsCls.GetFingerState(false);
 	if (vecFingerState.size()!=5)
 	{
@@ -658,6 +463,8 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	{
 		if (strCurFingereState=="11111"&&_strLastFingerState=="00000")
 		{
+			_bKeepState=true;
+
 			if (_CurState==OpState::Initial)
 			{
 				cout<<"====Initial=FrontView===="<<endl;
@@ -686,10 +493,13 @@ void GlWndMain::timerEvent(QTimerEvent *)
 		}
 		else		if (strCurFingereState=="11111"&&_CurState==OpState::FrontView)
 		{
-			_dRotX=0;
-			_dRotY=90;
-			_dRotZ=0;
-			_iFrontViewIndex=5;
+			if (!_bKeepState)
+			{
+				_dRotX=0;
+				_dRotY=90;
+				_dRotZ=0;
+				_iFrontViewIndex=5;
+			}
 		}
 		_strLastFingerState=strCurFingereState;
 	}
@@ -907,7 +717,317 @@ void GlWndMain::timerEvent(QTimerEvent *)
 
 	updateGL();
 }
+/*
+void GlWndMain::timerEvent(QTimerEvent *)
+{
+	int iCurTime=GetSysTime_number();
+	cout<<"回调 耗时(ms):"<<iCurTime-_iLastTime<<endl;
+	_iLastTime=iCurTime;
 
+	//借助MediaPip的Python版本完成手部关键点识别
+	_mMainCapture.read(_mFrameImage); 
+	if (_access("Data\\CreatedImage" , 0)==0)
+	{
+		rename("Data\\CreatedImage" , "Data\\CreatingImage");
+	}
+	cv::flip(_mFrameImage,_mFrameImage,1);
+	cv::Mat mTransBtidgeImage=_mFrameImage.clone();
+	cv::resize(mTransBtidgeImage,mTransBtidgeImage,cv::Size(320,240));
+	//cvtColor(mTransBtidgeImage,mTransBtidgeImage,CV_BGR2GRAY);
+	imwrite("Data\\TempImg.jpg",mTransBtidgeImage);
+	if (_access("Data\\CreatingImage" , 0)==0)
+	{
+		rename("Data\\CreatingImage" , "Data\\CreatedImage");
+	}
+	_vecAllHandPoints=_handPointsCls.GetAllHandPoints();
+	if(_handPointsCls.GetHandCount()==0)
+	{
+		updateGL();
+		return;
+	}
+	Point3D mTipPos_img=_handPointsCls.GetTipOfIndexFinger(false);
+	if (mTipPos_img.X<0||mTipPos_img.Y<0)
+	{
+		return;
+	}
+	//5 number(0 or 1) :thumb, index finger, middle finger, ring finger, little finger
+	vector<int> vecFingerState=_handPointsCls.GetFingerState(false);
+	if (vecFingerState.size()!=5)
+	{
+		return;
+	}
+
+	std::string strCurFingereState=ComputeStateSignal(vecFingerState);
+
+	cout<<vecFingerState[0];
+	cout<<vecFingerState[1];
+	cout<<vecFingerState[2];
+	cout<<vecFingerState[3];
+	cout<<vecFingerState[4];
+	cout<<endl;
+
+
+	Point3D mTipPos;
+	{
+		//转换到屏幕坐标
+		//图像[640,480]中有效区域[iImgRange_Xmin,iImgRange_Xmax][iImgRange_Ymin,iImgRange_Ymax]，映射到屏幕上的区域[0,_iScreenWidth][0,_iScreenHight]
+		int iImgRange_Xmin=100;
+		int iImgRange_Xmax=_iScreenWidth-100;
+		int iImgRange_Ymin=0;
+		int iImgRange_Ymax=_iScreenHight-80;
+		int iRangeWidth=iImgRange_Xmax-iImgRange_Xmin;
+		int iRangeHight=iImgRange_Ymax-iImgRange_Ymin;
+		mTipPos.X=(mTipPos_img.X-iImgRange_Xmin)*_iScreenWidth/iRangeWidth;
+		mTipPos.Y=(mTipPos_img.Y-iImgRange_Ymin)*_iScreenHight/iRangeHight;
+		if(mTipPos.X <0)
+			mTipPos.X=0;
+		if (mTipPos.X>_iScreenWidth)
+			mTipPos.X=_iScreenWidth;
+		if(mTipPos.Y <0)
+			mTipPos.Y=0;
+		if (mTipPos.Y>_iScreenHight)
+			mTipPos.Y=_iScreenHight;
+	}
+
+	Point3D mMousePos;
+	mMousePos.X = _mLastPos.X + (mTipPos.X - _mLastPos.X) / 5;
+	mMousePos.Y = _mLastPos.Y + (mTipPos.Y - _mLastPos.Y) / 5;
+	//删除微小移动误差
+	float fDiff=mMousePos.DistanceTo(_mLastPos);
+	//cout<<"error Diff:"<<fDiff<<endl;
+	if (fDiff<3)
+	{
+		return;
+	}
+	GLfloat dx = GLfloat(mMousePos.X-_mLastPos.X)/width();
+	GLfloat dy = GLfloat(mMousePos.Y-_mLastPos.Y)/height();
+	_mLastPos=mMousePos;
+	//cout<<"dx"<<dx<<endl;
+	//cout<<"dy"<<dy<<endl;
+
+
+	//状态变迁
+	if (strCurFingereState=="00000" || strCurFingereState=="11111")
+	{
+		if (strCurFingereState=="11111"&&_strLastFingerState=="00000")
+		{
+			if (_CurState==OpState::Initial)
+			{
+				cout<<"====Initial=FrontView===="<<endl;
+				_CurState=OpState::FrontView;
+			}
+			else if (_CurState==OpState::FrontView)
+			{
+				cout<<"====FrontView=Move===="<<endl;
+				_CurState=OpState::Move;
+			}
+			else if (_CurState==OpState::Move)
+			{
+				cout<<"====Move=Rotate===="<<endl;
+				_CurState=OpState::Rotate;
+			}
+			else if (_CurState==OpState::Rotate)
+			{
+				cout<<"====Rotate=Zoom===="<<endl;
+				_CurState=OpState::Zoom;
+			}
+			else if (_CurState==OpState::Zoom)
+			{
+				cout<<"====Zoom=FrontView===="<<endl;
+				_CurState=OpState::FrontView;
+			}
+		}
+		else		if (strCurFingereState=="11111"&&_CurState==OpState::FrontView)
+		{
+			_dRotX=0;
+			_dRotY=90;
+			_dRotZ=0;
+			_iFrontViewIndex=5;
+		}
+		_strLastFingerState=strCurFingereState;
+	}
+	else
+	{
+		_bKeepState=false;
+
+		//cout<<_CurState<<endl;
+
+		//FrontView
+		if (_CurState==OpState::Initial)
+		{
+			_CurState=OpState::FrontView;
+		}
+		if (_CurState==OpState::FrontView)
+		{
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]!=1
+				&&vecFingerState[3]!=1
+				&&vecFingerState[4]!=1)
+			{
+				_dRotX=0;
+				_dRotY=0;
+				_dRotZ=0;
+				_iFrontViewIndex=1;
+			}
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]==1
+				&&vecFingerState[3]!=1
+				&&vecFingerState[4]!=1)
+			{
+				_dRotX=180;
+				_dRotY=0;
+				_dRotZ=0;
+				_iFrontViewIndex=2;
+			}
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]==1
+				&&vecFingerState[3]==1
+				&&vecFingerState[4]!=1)
+			{
+				_dRotX=90;
+				_dRotY=0;
+				_dRotZ=0;
+				_iFrontViewIndex=3;
+			}
+			if (vecFingerState[0]!=1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]==1
+				&&vecFingerState[3]==1
+				&&vecFingerState[4]==1)
+			{
+				_dRotX=-90;
+				_dRotY=0;
+				_dRotZ=0;
+				_iFrontViewIndex=4;
+			}
+			if (vecFingerState[0]==1
+				&&vecFingerState[1]==1
+				&&vecFingerState[2]==1
+				&&vecFingerState[3]==1
+				&&vecFingerState[4]==1)
+			{
+				_dRotX=0;
+				_dRotY=90;
+				_dRotZ=0;
+				_iFrontViewIndex=5;
+			}
+			if (vecFingerState[0]==1
+				&&vecFingerState[1]!=1
+				&&vecFingerState[2]!=1
+				&&vecFingerState[3]!=1
+				&&vecFingerState[4]==1)
+			{
+				_dRotX=0;
+				_dRotY=-90;
+				_dRotZ=0;
+				_iFrontViewIndex=6;
+			}
+			_dZoom=-3;
+			//if (_iFrontViewIndex>=1&&_iFrontViewIndex<=6)
+			//{
+			//	_CurState=OpState::Adapting;
+			//}
+		}
+		else	if (_CurState==OpState::Move)
+		{
+
+			float dStep=0.05;
+			float dDiffX=0;
+			float dDiffY=0;
+
+			dDiffX=dx/1;
+			dDiffY=-dy/1;
+
+			_dMoveX+=dDiffX;
+			_dMoveY+=dDiffY;
+		}
+		else	if (_CurState==OpState::Rotate)
+		{
+			float dStep=2;
+			float dDiffX=0;
+			float dDiffY=0;
+			float dDiffZ=0;
+			if (vecFingerState[0]!=1)
+			{
+				if (vecFingerState[1]==1)
+				{
+					dDiffX+=dStep;
+				}
+				if (vecFingerState[2]==1)
+				{
+					dDiffY+=dStep;
+				}
+				if (vecFingerState[3]==1)
+				{
+					dDiffZ+=dStep;
+				}
+			}
+			else if (vecFingerState[0]==1)
+			{
+				if (vecFingerState[1]==1)
+				{
+					dDiffX+=-dStep;
+				}
+				if (vecFingerState[2]==1)
+				{
+					dDiffY+=-dStep;
+				}
+				if (vecFingerState[3]==1)
+				{
+					dDiffZ+=-dStep;
+				}
+			}
+
+			_dRotX+=dDiffX;
+			_dRotY+=dDiffY;
+			_dRotZ+=dDiffZ;
+		}
+		else	if (_CurState==OpState::Zoom)
+		{
+			float dStep=0.1;
+			float dDiff=0;
+			//float dMaxStep=dStep*3;
+			//float dMinStep=dStep*0.5;
+			//double dAngle=ComputeThumbAngle();
+			//float dDiffTemp=dAngle/90*dMaxStep;
+			//if(dDiffTemp<dMinStep) dDiffTemp= dMinStep;
+			//if(dDiffTemp>dMaxStep) dDiffTemp= dMaxStep;
+
+			if (vecFingerState[0]!=1&&
+				vecFingerState[1]==1
+				&&vecFingerState[2]!=1
+				&&vecFingerState[3]!=1
+				&&vecFingerState[4]!=1)
+			{
+				dDiff=-dStep;//-dDiffTemp;
+			}
+			if (vecFingerState[0]==1&&
+				vecFingerState[1]==1
+				&&vecFingerState[2]!=1
+				&&vecFingerState[3]!=1
+				&&vecFingerState[4]!=1)
+			{
+				dDiff=dStep;//dDiffTemp;
+			}
+
+			_dZoom+=dDiff;
+			if (_dZoom>-1.5)
+			{
+				_dZoom=-1.5;
+			}
+			if (_dZoom<-15)
+			{
+				_dZoom=-15;
+			}
+		}
+	}
+
+	updateGL();
+}
+*/
 bool ImageCVToGL(const Mat & mImageCV , GLubyte * & pixels)
 {
 	//int iTime1=GetSysTime_number();

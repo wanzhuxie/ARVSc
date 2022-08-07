@@ -139,6 +139,9 @@ private:
 	bool _bCreatedArBox;
 
 	int _iLastTime;
+
+	int _iScreenWidth;
+	int _iScreenHight;
 };
 
 #endif // GlWndMain_H
