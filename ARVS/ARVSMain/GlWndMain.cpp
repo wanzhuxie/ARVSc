@@ -54,7 +54,6 @@ GlWndMain::GlWndMain(QWidget *parent)
 	,_bOpenAR(true)
 	,_CurState(OpState::Initial)
 	,_bCreatedArBox(false)
-	,_iLastSumZ(0)
 	,_bShowHandPoints(true)
 	,_bARVideoOK(true)
 	,_iLastTime(0)
@@ -75,6 +74,8 @@ GlWndMain::GlWndMain(QWidget *parent)
 
 
 	_dRotX = _dRotY = _dRotZ = 0;
+
+	//Correction value
 	stepRotX=0;
 	stepRotY=0;
 	stepRotZ=0;
@@ -89,14 +90,14 @@ GlWndMain::GlWndMain(QWidget *parent)
 	}
 	startTimer(1);
 
-	//手坐标
+	//hand point
 	if (!_handPointsCls.Init())
 	{
 		cout<<"error on _handPointsCls.Init"<<endl;
 		return ;
 	}
 
-	//获取当前屏幕像素
+	//current screen resolution
 	_iScreenWidth = GetSystemMetrics (SM_CXSCREEN) ;  // wide
 	_iScreenHight = GetSystemMetrics (SM_CYSCREEN) ;  // high
 
@@ -111,34 +112,31 @@ void GlWndMain::initializeGL()
 	_mMainCapture=VideoCapture(0);
 	//_mMainCapture=VideoCapture(1);
 
-	glEnable(GL_TEXTURE_2D);//启用纹理
-	glEnable(GL_COLOR_MATERIAL);//可以用颜色来帖纹理
-	glShadeModel(GL_SMOOTH);//阴影平滑
-	glClearColor(1,1,1,0.5);//设置清除屏幕时所使用的颜色
+	glEnable(GL_TEXTURE_2D);//启用纹理 use texture
+	glEnable(GL_COLOR_MATERIAL);//可以用颜色纹理 can use pure color texture
+	glShadeModel(GL_SMOOTH);
+	glClearColor(1,1,1,0.5);// screen color
 
-	glClearDepth(1.0);//设置深度缓存
-	glEnable(GL_DEPTH_TEST);//启用深度测试
-	glDepthFunc(GL_LEQUAL);//所做深度测试的类型
+	glClearDepth(1.0);//设置深度缓存 depth cache
+	glEnable(GL_DEPTH_TEST);//启用深度测试 DEPTH_TEST
+	glDepthFunc(GL_LEQUAL);//所做深度测试的类型 DEPTH_TEST_Type
 
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT,GL_NICEST);//投影修正
-	glPolygonMode(GL_BACK,GL_FILL);//背景
-	glPolygonMode(GL_FRONT,GL_FILL);//前景
+	glHint(GL_PERSPECTIVE_CORRECTION_HINT,GL_NICEST);//投影修正 projection correction
+	glPolygonMode(GL_BACK,GL_FILL);//
+	glPolygonMode(GL_FRONT,GL_FILL);//
 
-	//设置光源
+	//light
 	GLfloat lightAmbient[4] = {0.5,0.5,0.5,1.0};
 	GLfloat lightDiffuse[4] = {1.0,1.0,1.0,1.0};
 	GLfloat lightPosition[4] = {0.0,0.0,2.0,1.0};
-	//雾的设定//三种雾的效果,依次递进
-	GLuint fogMode[3] = {GL_EXP,GL_EXP2,GL_LINEAR};
-	GLfloat fogColor[4] = {1,1,1,0.3};
-
-	//灯
 	glLightfv(GL_LIGHT1,GL_AMBIENT,lightAmbient);
 	glLightfv(GL_LIGHT1,GL_DIFFUSE,lightDiffuse);
 	glLightfv(GL_LIGHT1,GL_POSITION,lightPosition);
 	glEnable(GL_LIGHT1);
 
-	//雾
+	//flog
+	GLuint fogMode[3] = {GL_EXP,GL_EXP2,GL_LINEAR};
+	GLfloat fogColor[4] = {1,1,1,0.3};
 	glFogi(GL_FOG_MODE,fogMode[0]);
 	glFogfv(GL_FOG_COLOR,fogColor);
 	glFogf(GL_FOG_DENSITY,0.1);//雾的浓度
@@ -147,14 +145,14 @@ void GlWndMain::initializeGL()
 	glFogf(GL_FOG_END, 5.0);
 
 
-	//标记角点
+	//marker corner
 	_mMarkerCorners.push_back(Point3f(-0.5f, -0.5f, 0));
 	_mMarkerCorners.push_back(Point3f(-0.5f,  0.5f, 0));
 	_mMarkerCorners.push_back(Point3f( 0.5f,  0.5f, 0));
 	_mMarkerCorners.push_back(Point3f( 0.5f, -0.5f, 0));
 
 
-	////通过相机标定确定的参数，立方体与标记有偏差，不确定是不是由于标定数据引起
+	////The parameters determined by camera calibration show that the cube deviates from the mark. Whether the uncertainty is caused by calibration data
 	//float mCameraMatrix[] = 
 	//{
 	//	590.7319		,0						,292.9710,
@@ -163,7 +161,7 @@ void GlWndMain::initializeGL()
 	//};
 	//float dist_coeff[] = {0.1095483732100013, 0.005921985694402154, -0.02522667923131416, -0.0171742783898786, -0.1891767195416431};
 	
-	////20220626新数据
+	////20220626 data
 	//float mCameraMatrix[] = 
 	//{
 	//	621.6733		,0						,301.8697,
@@ -173,7 +171,7 @@ void GlWndMain::initializeGL()
 	//float dist_coeff[] = {0.2050844086865027, -1.253387945124429, -0.009926487596546369, -0.006799737561947785, 5.45488965637716};
 
 
-	//外部摄像头参数
+	//camera data
 	float mCameraMatrix[] = 
 	{
 		508.3018		,0						,300.1497,
@@ -181,32 +179,27 @@ void GlWndMain::initializeGL()
 		0					,0						,1
 	};
 	float dist_coeff[] = {-0.4172170641396942, -0.1135454666162299, -0.0009781100036345459, -0.006095536879777572, 0.7763703887603729};
-
-
-	//构造3x3列的mat
 	m_camera_matrix = Mat(3, 3, CV_32FC1, mCameraMatrix).clone();	
-	//构造1x4列的mat
 	m_dist_coeff = Mat(1, 5, CV_32FC1, dist_coeff).clone();
 
-	////设置贴图整个窗口会变暗。。。
+	//static image texture
 	//loadGLTextures();
-
 }
 void GlWndMain::resizeGL(int w, int h)
 {
 	cout<<__FUNCTION__<<endl;
 
-	if (h==0)//防止高为0
+	if (h==0)
 	{
 		h=1;
 	}
-	glViewport(0,0,(GLint)w,(GLint)h);//重置当前的视口
-	glMatrixMode(GL_PROJECTION);//选择投影矩阵
-	glLoadIdentity();//重置投影矩阵
-	gluPerspective(45, (GLfloat)w/(GLfloat)h,0.1,300);//建立透视投影矩阵
+	glViewport(0,0,(GLint)w,(GLint)h);//reset viewpoint
+	glMatrixMode(GL_PROJECTION);//projection matrix
+	glLoadIdentity();//reset projection matrix
+	gluPerspective(45, (GLfloat)w/(GLfloat)h,0.1,300);//perspective projection
 	//gluOrtho2D(0, w, 0, h);
-	glMatrixMode(GL_MODELVIEW);//选择模型观察矩阵
-	glLoadIdentity();//重置模型观察矩阵
+	glMatrixMode(GL_MODELVIEW);//MODELVIEW
+	glLoadIdentity();//reset MODELVIEW
 
 
 }
@@ -257,6 +250,10 @@ void GlWndMain::paintGL()
 				h近剪裁面的高度
 				n近剪裁面距离摄像机的距离
 				f远剪裁面距离摄像机的距离
+				W width of near clipping face
+				H height of near the clipping surface
+				N distance from the near clipping plane to the camera
+				F distance from the far clipping plane to the camera
 				*/
 				m_projection_matrix[0] = 2*f_x/width;
 				m_projection_matrix[1] = 0.0f;
@@ -277,7 +274,7 @@ void GlWndMain::paintGL()
 
 			}
 			glMatrixMode(GL_PROJECTION);
-			glLoadIdentity();//重置当前指定的矩阵为单位矩阵
+			glLoadIdentity();
 			//glMultMatrixf(m_projection_matrix);
 			glLoadMatrixf(m_projection_matrix);
 
@@ -290,19 +287,20 @@ void GlWndMain::paintGL()
 			for (int i = 0; i < markers.size(); ++i)
 			{
 				Mat rot_vec;
-				bool res = solvePnP(_mMarkerCorners,		//i世界坐标系下的控制点的坐标
-					markers[i].m_corners,							//i图像坐标系下对应的控制点的坐标
-					m_camera_matrix,								//i相机内参
-					m_dist_coeff,									//i相机畸变
-					rot_vec,										//o旋转向量
-					translation);											//o平移向量
+				bool res = solvePnP(_mMarkerCorners,		//i世界坐标系下的控制点的坐标			//I coordinates of control points in the world coordinate system
+					markers[i].m_corners,								//i图像坐标系下对应的控制点的坐标	//I coordinates of corresponding control points in the image coordinate system
+					m_camera_matrix,										//i相机内参											//I camera internal parameters
+					m_dist_coeff,												//i相机畸变											//I camera distortion
+					rot_vec,														//o旋转向量											//O rotation vector
+					translation);												//o平移向量											//O translation vector
 
-				Rodrigues(rot_vec, rotation);				//旋转向量变为旋转矩阵
+				Rodrigues(rot_vec, rotation);				//rotation vector to matrix
 				//cout<<"translation..."<<endl<<translation<<endl;
 				//cout<<"rot_vec..."<<endl<<rot_vec<<endl;
 				//cout<<"rotation..."<<endl<<rotation<<endl;
 
 				//绕X轴旋转180度，从OpenCV坐标系变换为OpenGL坐标系
+				//Rotate 180 degrees around the X axis and transform from opencv coordinate system to OpenGL coordinate system
 				static double d[] = 
 				{
 					1, 0, 0,
@@ -335,12 +333,12 @@ void GlWndMain::paintGL()
 				m_model_view_matrix[15] =		1.0f;
 
 					
-				glLoadMatrixf(m_model_view_matrix);////把当前矩阵GL_MODELVIEW的16个值设置为指定的值
+				glLoadMatrixf(m_model_view_matrix);//set GL_MODELVIEW matrix
 
 				DrawARBox();
 				bAppearNewMarker=true;
 
-
+				//test for output
 				string strPicExportFolder=m_recognizer.GetExportPicFolder();
 				if (strPicExportFolder!=""&&_access(strPicExportFolder.c_str() , 0)==0)
 				{
@@ -377,15 +375,13 @@ void GlWndMain::paintGL()
 		glColor4f(1,1,1,1);
 	}
 
-	//DrawMainBox();
-
-	//如果已经创建过立方体&&此时没有标记，就沿用原来的位置
+	//如果已经创建过立方体&&此时没有标记，就沿用原来的位置 if there is no marker and the cube was created, the cube keep the latest position
 	if (_bCreatedArBox && !bAppearNewMarker)
 	{
 		if (_CurState==OpState::Initial)
 		{
 			glMatrixMode(GL_PROJECTION);
-			glLoadIdentity();//重置当前指定的矩阵为单位矩阵
+			glLoadIdentity();
 			glLoadMatrixf(m_projection_matrix);
 
 			glMatrixMode(GL_MODELVIEW);
@@ -393,7 +389,7 @@ void GlWndMain::paintGL()
 			glEnable(GL_DEPTH_TEST);
 			glShadeModel(GL_SMOOTH); //some model / light stuff
 
-			glLoadMatrixf(m_model_view_matrix);////把当前矩阵GL_MODELVIEW的16个值设置为指定的值
+			glLoadMatrixf(m_model_view_matrix);// set GL_MODELVIEW matrix
 		}
 
 		DrawARBox();
@@ -409,14 +405,15 @@ void GlWndMain::paintGL()
 
 }
 
-//计时回调
+//core callback
 void GlWndMain::timerEvent(QTimerEvent *)
 {
-		int iCurTime=GetSysTime_number();
-		cout<<"回调 耗时(ms):"<<iCurTime-_iLastTime<<endl;
-		_iLastTime=iCurTime;
+	////coutTimeSpan
+	//int iCurTime=GetSysTime_number();
+	//cout<<"回调 耗时(ms):"<<iCurTime-_iLastTime<<endl;
+	//_iLastTime=iCurTime;
 
-	//借助MediaPip的Python版本完成手部关键点识别
+	//With the help of MediaPip in Python to get hand points
 	_mMainCapture.read(_mFrameImage); 
 	if (_access("Data\\CreatedImage" , 0)==0)
 	{
@@ -458,7 +455,7 @@ void GlWndMain::timerEvent(QTimerEvent *)
 	cout<<vecFingerState[4];
 	cout<<endl;
 
-	//状态变迁
+	//state change
 	if (strCurFingereState=="00000" || strCurFingereState=="11111")
 	{
 		if (strCurFingereState=="11111"&&_strLastFingerState=="00000")
@@ -498,7 +495,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 				_dRotX=0;
 				_dRotY=90;
 				_dRotZ=0;
-				_iFrontViewIndex=5;
 			}
 		}
 		_strLastFingerState=strCurFingereState;
@@ -525,7 +521,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 				_dRotX=0;
 				_dRotY=0;
 				_dRotZ=0;
-				_iFrontViewIndex=1;
 			}
 			if (vecFingerState[0]!=1
 				&&vecFingerState[1]==1
@@ -536,7 +531,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 				_dRotX=180;
 				_dRotY=0;
 				_dRotZ=0;
-				_iFrontViewIndex=2;
 			}
 			if (vecFingerState[0]!=1
 				&&vecFingerState[1]==1
@@ -547,7 +541,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 				_dRotX=90;
 				_dRotY=0;
 				_dRotZ=0;
-				_iFrontViewIndex=3;
 			}
 			if (vecFingerState[0]!=1
 				&&vecFingerState[1]==1
@@ -558,7 +551,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 				_dRotX=-90;
 				_dRotY=0;
 				_dRotZ=0;
-				_iFrontViewIndex=4;
 			}
 			if (vecFingerState[0]==1
 				&&vecFingerState[1]==1
@@ -569,7 +561,6 @@ void GlWndMain::timerEvent(QTimerEvent *)
 				_dRotX=0;
 				_dRotY=90;
 				_dRotZ=0;
-				_iFrontViewIndex=5;
 			}
 			if (vecFingerState[0]==1
 				&&vecFingerState[1]!=1
@@ -580,13 +571,8 @@ void GlWndMain::timerEvent(QTimerEvent *)
 				_dRotX=0;
 				_dRotY=-90;
 				_dRotZ=0;
-				_iFrontViewIndex=6;
 			}
 			_dZoom=-3;
-			//if (_iFrontViewIndex>=1&&_iFrontViewIndex<=6)
-			//{
-			//	_CurState=OpState::Adapting;
-			//}
 		}
 		else	if (_CurState==OpState::Move)
 		{
@@ -1045,7 +1031,7 @@ bool ImageCVToGL(const Mat & mImageCV , GLubyte * & pixels)
 }
 
 
-//鼠标事件
+//mouse callback
 void GlWndMain::mousePressEvent(QMouseEvent *e)
 {
 	setCursor(Qt::OpenHandCursor);
@@ -1121,6 +1107,8 @@ void GlWndMain::loadGLTextures()
 	}
 	glEnable(GL_TEXTURE_2D);
 }
+
+//draw AR cube
 void GlWndMain::DrawARBox()
 {
 	//glTexImage2D在创建图片纹理时，整体变得很暗，所以先全部使用视频贴图
@@ -1579,67 +1567,7 @@ void GlWndMain::DrawARBox2()
 	_bCreatedArBox=true;
 }
 
-void GlWndMain::DrawMainBox()
-{
-	cout<<__FUNCTION__<<endl;
-	glBindTexture(GL_TEXTURE_2D, texture[0]);
-	glBegin(GL_QUADS);
-	glNormal3f(0,0,1);
-	glTexCoord2f(0,0); glVertex3f(-1,		-1,	1);
-	glTexCoord2f(1,0); glVertex3f(1,		-1,	1);
-	glTexCoord2f(1,1); glVertex3f(1,		1,		1);
-	glTexCoord2f(0,1); glVertex3f(-1,		1,		1);
-	glEnd();
-
-	glBindTexture(GL_TEXTURE_2D, texture[1]);
-	glBegin(GL_QUADS);
-	glNormal3f(0,0,-1);
-	glTexCoord2f(0,0); glVertex3f(1,		-1,	-1);
-	glTexCoord2f(1,0); glVertex3f(-1,		-1,	-1);
-	glTexCoord2f(1,1); glVertex3f(-1,		1,		-1);
-	glTexCoord2f(0,1); glVertex3f(1,		1,		-1);
-	glEnd();
-
-	glBindTexture(GL_TEXTURE_2D, texture[2]);
-	glBegin(GL_QUADS);
-	glNormal3f(-1,0,0);
-	glTexCoord2f(0,0); glVertex3f(-1,		-1,	-1);
-	glTexCoord2f(1,0); glVertex3f(-1,		-1,	1);
-	glTexCoord2f(1,1); glVertex3f(-1,		1,		1);
-	glTexCoord2f(0,1); glVertex3f(-1,		1,		-1);
-	glEnd();
-
-	glBindTexture(GL_TEXTURE_2D, texture[3]);
-	glBegin(GL_QUADS);
-	glNormal3f(1,0,0);
-	glTexCoord2f(0,0); glVertex3f(1,		-1,	1);
-	glTexCoord2f(1,0); glVertex3f(1,		-1,	-1);
-	glTexCoord2f(1,1); glVertex3f(1,		1,		-1);
-	glTexCoord2f(0,1); glVertex3f(1,		1,		1);
-	glEnd();
-
-	glBindTexture(GL_TEXTURE_2D, texture[4]);
-	glBegin(GL_QUADS);
-	glNormal3f(0,1,0);
-	glTexCoord2f(0,0); glVertex3f(-1,		1,		1);
-	glTexCoord2f(1,0); glVertex3f(1,		1,		1);
-	glTexCoord2f(1,1); glVertex3f(1,		1,		-1);
-	glTexCoord2f(0,1); glVertex3f(-1,		1,		-1);
-	glEnd();
-
-	glBindTexture(GL_TEXTURE_2D, texture[5]);
-	glBegin(GL_QUADS);
-	glNormal3f(0,-1,0);
-	glTexCoord2f(0,0); glVertex3f(-1,		-1,		-1);
-	glTexCoord2f(1,0); glVertex3f(1,		-1,		-1);
-	glTexCoord2f(1,1); glVertex3f(1,		-1,		1);
-	glTexCoord2f(0,1); glVertex3f(-1,		-1,		1);
-	glEnd();
-
-}
-
-
-
+//Action
 void GlWndMain::Run()
 {
 	_bRun=true;

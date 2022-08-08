@@ -28,7 +28,6 @@ public:
 	~GlWndMain();
 	void DrawARBox();
 	void DrawARBox2();
-	void DrawMainBox();
 	void Run();
 	void Stop();
 	void Pause();
@@ -48,43 +47,46 @@ public:
 private:
 	Ui::GlWndMainClass ui;
 
-	void initializeGL();//初始化QpenGL窗口部件
-	void paintGL();//绘制QPenGL窗口,有更新发生，函数就会被调用
-	void resizeGL(int w, int h);//处理窗口大小变化，w和h是新状态下的宽和高，完成后自动刷新屏幕
-	void timerEvent(QTimerEvent *);//实现窗口部件的定时操作
+	void initializeGL();
+	void paintGL();
+	void resizeGL(int w, int h);
+	void timerEvent(QTimerEvent *);
 
 	double ComputeThumbAngle( );
 
-	void loadGLTextures();//载入纹理
 
-	//void keyPressEvent(QKeyEvent *e);//键盘按下事件处理函数
-	void mousePressEvent(QMouseEvent *e);//鼠标单击事件
-	void mouseMoveEvent(QMouseEvent *e);//鼠标移动事件
-	void mouseReleaseEvent(QMouseEvent *e);//鼠标释放事件
-	void wheelEvent(QWheelEvent *e);//鼠标滚轮事件
+	////Mouse Keyboard
+	//void keyPressEvent(QKeyEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mouseReleaseEvent(QMouseEvent *e);
+	void wheelEvent(QWheelEvent *e);
 
 	bool fullScreen;
 	GLfloat _dRotX,_dRotY,_dRotZ;
 	GLfloat _dMoveX, _dMoveY;
 	GLfloat _dZoom;
 
-	GLfloat stepRotX,stepRotY,stepRotZ;//纠错值
+	GLfloat stepRotX,stepRotY,stepRotZ;//correction value
 
-	GLuint texture[6];//6个纹理
+	//6 static texture
+	GLuint texture[6];
+	void loadGLTextures();
 
-	QPoint lastPos;//鼠标位置
+	QPoint lastPos;//mouse position
 
 	bool _bKeepState;
-	bool _bRun;//开始结束
-	bool _bPause;//暂停继续
-	bool _bHyaline;//是否开启透明
-	bool _bFog;//是否开启透明
+	bool _bRun;//start end
+	bool _bPause;//pause continue
+	bool _bHyaline;//
+	bool _bFog;//
 	bool _bOpenAR;//是否开启摄像头
 
+	//WebCamera
 	VideoCapture _mMainCapture;
 	Mat _mFrameImage;
 
-	//AR方块视频
+	//AR video
 	VideoCapture videoOfAR0;
 	VideoCapture videoOfAR1;
 	VideoCapture videoOfAR2;
@@ -106,42 +108,49 @@ private:
 
 	BOOL _bARVideoOK;
 
-	//标记角点
+	//marker corner
 	vector<cv::Point3f> _mMarkerCorners;
 
+	//camera data
 	cv::Mat m_camera_matrix;
 	cv::Mat m_dist_coeff;
+
+	//Main matrix
 	float m_projection_matrix[16];
 	float m_model_view_matrix[16];
 
-	MarkerRecognizer m_recognizer;//标记识别器
+	MarkerRecognizer m_recognizer;//marker Recognizer
 
-	Point3D _mLastPos;//手势位置
-	int _iLastSumZ;
+	Point3D _mLastPos;//index finger tip position
+
+	//hand points
 	HandPointsProvider _handPointsCls;
 	vector<Point3D> _vecAllHandPoints;
-	int _iFrontViewIndex;//123456
-	BOOL _bShowHandPoints;
+	
 	enum OpState
 	{
-		Initial//尚未通过手势控制
-		//,Pause
-		,FrontView//正视
-		,Adapting//正在调整到正视中NG
-		,Adjustment//度量调整NG
-		,Move//手调
-		,Rotate//手调
-		,Zoom//手调
+		Initial//
+		,FrontView//
+		,Adapting//not used
+		,Adjustment//not used
+		,Move//
+		,Rotate//
+		,Zoom//
 
 	};
 	OpState _CurState;
 	std::string _strLastFingerState;
 	bool _bCreatedArBox;
 
-	int _iLastTime;
 
 	int _iScreenWidth;
 	int _iScreenHight;
+
+
+	//for test
+	int _iLastTime;
+	BOOL _bShowHandPoints;
+
 };
 
 #endif // GlWndMain_H

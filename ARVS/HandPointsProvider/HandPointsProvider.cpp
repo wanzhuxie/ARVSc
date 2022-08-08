@@ -250,7 +250,7 @@ vector<int> HandPointsProvider::GetFingerState(bool bNewest)
 	for (int a=1;a<5;a++)
 	{
 		iTipIndex=vecFingerTipIndex[a];
-		//指尖最高，伸出1
+		//tip point highest, extension 1
 		if ((_vecHandPoints[iTipIndex].Y < _vecHandPoints[iTipIndex-1].Y)
 			&&(_vecHandPoints[iTipIndex].Y < _vecHandPoints[iTipIndex-2].Y)
 			&&(_vecHandPoints[iTipIndex].Y < _vecHandPoints[iTipIndex-3].Y)
@@ -258,7 +258,7 @@ vector<int> HandPointsProvider::GetFingerState(bool bNewest)
 		{
 			vecResult.push_back(1);
 		}
-		//指尖-3最高，闭合0
+		//tip point-3 highest, closure 0
 		else if (	(_vecHandPoints[iTipIndex-3].Y < _vecHandPoints[iTipIndex].Y)
 						&&(_vecHandPoints[iTipIndex-3].Y < _vecHandPoints[iTipIndex-1].Y)
 						&&(_vecHandPoints[iTipIndex-3].Y < _vecHandPoints[iTipIndex-2].Y)
@@ -266,7 +266,7 @@ vector<int> HandPointsProvider::GetFingerState(bool bNewest)
 		{
 			vecResult.push_back(0);
 		}
-		////指尖-2最高，半伸出2
+		////ip point-2highest, half extension 2
 		//else if (	(_vecHandPoints[iTipIndex-2].Y < _vecHandPoints[iTipIndex].Y)
 		//				&&(_vecHandPoints[iTipIndex-2].Y < _vecHandPoints[iTipIndex-1].Y)
 		//				&&(_vecHandPoints[iTipIndex-2].Y < _vecHandPoints[iTipIndex-3].Y)

@@ -12,24 +12,22 @@ void main()
 {
 	ifstream fin("Data\\calibdata.txt"); //Img data
 	ofstream fout("Data\\result.txt");  //Redult data	
-	//读取每一幅图像，从中提取出角点，然后对角点进行亚像素精确化	
-	cout<<"开始提取角点………………"<<endl;
+	//read every image
+	cout<<"Start corner extraction......"<<endl;
 	int image_count=0;
 	Size image_size;  
-	Size board_size = Size(7,7); //注意是黑白方块的交界点，如方块为8X8，则交点数为7X7
-	vector<Point2f> image_points_buf;  /* 缓存每幅图像上检测到的角点 */
-	vector<vector<Point2f>> image_points_seq; /* 保存检测到的所有角点 */
+	Size board_size = Size(7,7); //注意是黑白方块的交界点，如方块为8X8，则交点数为7X7Note that it is the intersection point of black and white squares. If the square is 8x8, the intersection point is 7x7
+	vector<Point2f> image_points_buf;  
+	vector<vector<Point2f>> image_points_seq;
 	string filename;
-	int count= -1 ;//用于存储角点个数。
+	int count= -1 ;//corner count
 	while (getline(fin,filename))
 	{
 		image_count++;		
-		// 用于观察检验输出
 		cout<<"image_count = "<<image_count<<endl;		
-		/* 输出检验*/
 		cout<<"-->count = "<<count;		
 		Mat imageInput=imread(filename);
-		if (image_count == 1)  //读入第一张图片时获取图像宽高信息
+		if (image_count == 1)  //read first image to get width and hight
 		{
 			image_size.width = imageInput.cols;
 			image_size.height =imageInput.rows;			
@@ -37,10 +35,10 @@ void main()
 			cout<<"image_size.height = "<<image_size.height<<endl;
 		}
 
-		/* 提取角点 */
+		/* extract corner */
 		if (0 == findChessboardCorners(imageInput,board_size,image_points_buf))
 		{			
-			cout<<"can not find chessboard corners!\n"; //找不到角点
+			cout<<"can not find chessboard corners!\n"; //no corner
 			system("pause");
 			exit(1);
 		} 
@@ -48,29 +46,29 @@ void main()
 		{
 			Mat view_gray;
 			cvtColor(imageInput,view_gray,CV_RGB2GRAY);
-			/* 亚像素精确化 */
-			find4QuadCornerSubpix(view_gray,image_points_buf,Size(5,5)); //对粗提取的角点进行精确化
+			/* Subpixel precision */
+			find4QuadCornerSubpix(view_gray,image_points_buf,Size(5,5)); 
 			//cornerSubPix(view_gray,image_points_buf,Size(5,5),Size(-1,-1),TermCriteria(CV_TERMCRIT_EPS+CV_TERMCRIT_ITER,30,0.1));
-			image_points_seq.push_back(image_points_buf);  //保存亚像素角点
-			/* 在图像上显示角点位置 */
-			drawChessboardCorners(view_gray,board_size,image_points_buf,false); //用于在图片中标记角点
-			//imshow("Camera Calibration",view_gray);//显示图片
-			//waitKey(500);//暂停0.5S		
+			image_points_seq.push_back(image_points_buf);
+			/*Show corner position on image*/
+			drawChessboardCorners(view_gray,board_size,image_points_buf,false); 
+			//imshow("Camera Calibration",view_gray);//show image
+			//waitKey(500);
 		}
 	}
 	int total = image_points_seq.size();
 	cout<<"total = "<<total<<endl;
-	int CornerNum=board_size.width*board_size.height;  //每张图片上总的角点数
+	int CornerNum=board_size.width*board_size.height;  //total corners
 	for (int ii=0 ; ii<total ;ii++)
 	{
-		if (0 == ii%CornerNum)// 是每幅图片的角点个数
+		if (0 == ii%CornerNum)
 		{	
 			int i = -1;
 			i = ii/CornerNum;
 			int j=i+1;
-			cout<<"--> 第 "<<j <<"图片的数据 --> : "<<endl;
+			cout<<"--> The "<<j <<"image data --> : "<<endl;
 		}
-		if (0 == ii%3)	// 此判断语句，格式化输出，便于控制台查看
+		if (0 == ii%3)
 		{
 			cout<<endl;
 		}
@@ -78,16 +76,15 @@ void main()
 		{
 			cout.width(10);
 		}
-		//输出所有的角点
+		//output all corner
 		cout<<" -->"<<image_points_seq[ii][0].x;
 		cout<<" -->"<<image_points_seq[ii][0].y;
 	}	
-	cout<<"角点提取完成！\n";
+	cout<<"Corner extraction completed!\n";
 
-	//以下是摄像机标定
-	cout<<"开始标定………………";
-	/*棋盘三维信息*/
-	Size square_size = Size(10,10);  /* 实际测量得到的标定板上每个棋盘格的大小 */
+	cout<<"camera calibration";
+	/*Chessboard 3D information*/
+	Size square_size = Size(10,10);  /* Real size */
 	vector<vector<Point3f>> object_points; /* 保存标定板上角点的三维坐标 */
 	/*内外参数*/
 	Mat cameraMatrix=Mat(3,3,CV_32FC1,Scalar::all(0)); /* 摄像机内参数矩阵 */
@@ -105,7 +102,7 @@ void main()
 			for (j=0;j<board_size.width;j++) 
 			{
 				Point3f realPoint;
-				/* 假设标定板放在世界坐标系中z=0的平面上 */
+				/* Suppose the calibration plate is placed on the plane of Z = 0 in the world coordinate system */
 				realPoint.x = i*square_size.width;
 				realPoint.y = j*square_size.height;
 				realPoint.z = 0;
@@ -114,27 +111,27 @@ void main()
 		}
 		object_points.push_back(tempPointSet);
 	}
-	/* 初始化每幅图像中的角点数量，假定每幅图像中都可以看到完整的标定板 */
+
 	for (i=0;i<image_count;i++)
 	{
 		point_counts.push_back(board_size.width*board_size.height);
 	}	
 	/* Start */
 	calibrateCamera(object_points,image_points_seq,image_size,cameraMatrix,distCoeffs,rvecsMat,tvecsMat,0);
-	cout<<"calibrate OK！\n";
-	//对标定结果进行评价
-	cout<<"开始评价标定结果………………\n";
-	double total_err = 0.0; /* 所有图像的平均误差的总和 */
-	double err = 0.0; /* 每幅图像的平均误差 */
-	vector<Point2f> image_points2; /* 保存重新计算得到的投影点 */
-	cout<<"\t每幅图像的标定误差：\n";
-	fout<<"每幅图像的标定误差：\n";
+	cout<<"calibrate OK\n";
+	//estimate
+	cout<<"estimate......\n";
+	double total_err = 0.0; 
+	double err = 0.0; /* average error of each image */
+	vector<Point2f> image_points2; /* Save the recalculated projection points */
+	cout<<"Calibration error of each image\n";
+	fout<<"Calibration error of each image\n";
 	for (i=0;i<image_count;i++)
 	{
 		vector<Point3f> tempPointSet=object_points[i];
-		/* 通过得到的摄像机内外参数，对空间的三维点进行重新投影计算，得到新的投影点 */
+		/* Through the obtained internal and external parameters of the camera, the three-dimensional points in the space are re projected and calculated to obtain new projection points */
 		projectPoints(tempPointSet,rvecsMat[i],tvecsMat[i],cameraMatrix,distCoeffs,image_points2);
-		/* 计算新的投影点和旧的投影点之间的误差*/
+		/* Calculate the error between the new projection point and the old projection point*/
 		vector<Point2f> tempImagePoint = image_points_seq[i];
 		Mat tempImagePointMat = Mat(1,tempImagePoint.size(),CV_32FC2);
 		Mat image_points2Mat = Mat(1,image_points2.size(), CV_32FC2);
@@ -145,41 +142,41 @@ void main()
 		}
 		err = norm(image_points2Mat, tempImagePointMat, NORM_L2);
 		total_err += err/=  point_counts[i];   
-		std::cout<<"第"<<i+1<<"幅图像的平均误差："<<err<<"像素"<<endl;   
-		fout<<"第"<<i+1<<"幅图像的平均误差："<<err<<"像素"<<endl;   
+		std::cout<<"The "<<i+1<<"image's error: "<<err<<"pixies"<<endl;   
+		fout<<"The "<<i+1<<"image's error: "<<err<<"pixies"<<endl;   
 	}   
-	std::cout<<"总体平均误差："<<total_err/image_count<<"像素"<<endl;   
-	fout<<"总体平均误差："<<total_err/image_count<<"像素"<<endl<<endl;   
-	std::cout<<"评价完成！"<<endl;  
-	//保存定标结果  	
-	std::cout<<"开始保存定标结果………………"<<endl;       
-	Mat rotation_matrix = Mat(3,3,CV_32FC1, Scalar::all(0)); /* 保存每幅图像的旋转矩阵 */
-	fout<<"相机内参数矩阵："<<endl;   
+	std::cout<<"Overall mean error: "<<total_err/image_count<<"pixies"<<endl;   
+	fout<<"Overall mean error: "<<total_err/image_count<<"pixies"<<endl<<endl;   
+	std::cout<<"Evaluation completed!"<<endl;  
+	//save result	
+	std::cout<<"save result......"<<endl;
+	Mat rotation_matrix = Mat(3,3,CV_32FC1, Scalar::all(0));
+	fout<<"Camera internal parameter matrix: "<<endl;   
 	fout<<cameraMatrix<<endl<<endl;   
-	fout<<"畸变系数：\n";   
+	fout<<"The distortion coefficient: \n";   
 	fout<<distCoeffs<<endl<<endl<<endl;   
 	for (int i=0; i<image_count; i++) 
 	{ 
-		fout<<"第"<<i+1<<"幅图像的旋转向量："<<endl;   
+		fout<<"The "<<i+1<<"image's rotation vector"<<endl;   
 		fout<<tvecsMat[i]<<endl;    
-		/* 将旋转向量转换为相对应的旋转矩阵 */   
+
 		Rodrigues(tvecsMat[i],rotation_matrix);   
-		fout<<"第"<<i+1<<"幅图像的旋转矩阵："<<endl;   
+		fout<<"The "<<i+1<<"image's rotation matrix"<<endl;   
 		fout<<rotation_matrix<<endl;   
-		fout<<"第"<<i+1<<"幅图像的平移向量："<<endl;   
+		fout<<"The "<<i+1<<"image's translation vector"<<endl;   
 		fout<<rvecsMat[i]<<endl<<endl;   
 	}   
-	std::cout<<"完成保存"<<endl; 
+	std::cout<<"saved"<<endl; 
 	fout<<endl;
 	/************************************************************************  
-	显示定标结果  
+	show result  
 	*************************************************************************/
 	if (0)
 	{
 		Mat mapx = Mat(image_size,CV_32FC1);
 		Mat mapy = Mat(image_size,CV_32FC1);
 		Mat R = Mat::eye(3,3,CV_32F);
-		std::cout<<"保存矫正图像"<<endl;
+		std::cout<<"save correct image"<<endl;
 		string imageFileName;
 		std::stringstream StrStm;
 		for (int i = 0 ; i != image_count ; i++)
@@ -203,7 +200,7 @@ void main()
 			imageFileName += "_d.jpg";
 			imwrite(imageFileName,newimage);
 		}
-		std::cout<<"保存结束"<<endl;	
+		std::cout<<"ok"<<endl;	
 	}
 
 }

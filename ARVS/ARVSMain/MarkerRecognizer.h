@@ -19,10 +19,10 @@ class Marker
 public:
 	int m_id;
 	std::vector<cv::Point2f> m_corners;
-	// 0-----3
-	// |			|
-	// |			|
-	// 1-----2
+	// 0-------3
+	// |				|
+	// |				|
+	// 1-------2
 
 public:
 	Marker();
@@ -44,7 +44,7 @@ private:
 	void markerRefine(cv::Mat& img_gray, std::vector<Marker>& final_markers);
 	cv::Mat bitMatrixRotate(cv::Mat& bit_matrix);
 
-	string _picFileDir;//中间如果输出，输出的位置
+	string _picFileDir;//processing data output path
 
 public:
 	MarkerRecognizer();
