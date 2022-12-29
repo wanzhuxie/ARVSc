@@ -74,16 +74,16 @@ OpenCV处理图像，识别预定义标记
 
 Design of an interactive advertising system
 
-##Introduction
+## Introduction
 
 It is an interactive video playback system based on augmented reality and gesture recognition. The system recognizes the image captured by the camera in real time. When there is a predefined square marker, the cube is created at the marker position, and the pre configured video files are played on the six faces of the cube. The cube can be manipulated through gestures. It can be used for campus publicity, shopping mall guidance, scenic spot introduction, etc.
 
-##Marker definition
+## Marker definition
 
 1. 5x5 white cells with black background. There are four corners of the marker and only one corner is an isolated cell, that is, the surrounding color is black. The last row and the last column have white cells, that is the sum of the values in the last row and the last column cannot be 0 (black 0, white 1)
 2. The marker with isolated cell in the upper left corner is regarded as the standard marker. When the isolated cell is at the other three corners, the marker is considered to be the result of plane rotation on the basis of the standard marker. 
 
-##Software library
+## Software library
 
 - QT5
 - OpenCV2413
@@ -91,35 +91,35 @@ It is an interactive video playback system based on augmented reality and gestur
 - Python3.7
 - MeadiaPipe
 
-##Software architecture
+## Software architecture
 
-####General functions
+#### General functions
 
 Some common multi module methods.
 
-####Math library
+#### Math library
 
 Download on https://www.songho.ca/index.html , copyright belongs to song ho Ahn(song.ahn@gmail.com), with minor modifications on the original basis.
 
-####Camera calibration
+#### Camera calibration
 
 Calibrate the camera to be used, and the project includes the checkerboard diagram for calibration.
 
-####Hand key extraction (handpointsprovider)
+#### Hand key extraction (handpointsprovider)
 
  The compilation method is described in detail by the official instructions (https://google.github.io/mediapipe/getting_started/cpp.html).
 
-####Main program arvsmain
+#### Main program arvsmain
 
-######Identification of markers
+###### Identification of markers
 
 Opencv processes images to identify predefined markers.
 
-######Creation of virtual graphics
+###### Creation of virtual graphics
 
 After identifying the marker, calculate the pose of the marker in space, create a cube at the marker using OpenGL, and create an image map captured by the camera in real time on the surface of the cube.
 
-######Gesture analysis
+###### Gesture analysis
 
 Analyze the hand key points obtained through the handpointsprovider, calculate the current gesture, and then manipulate the virtual object accordingly.
 
@@ -163,10 +163,10 @@ Analyze the hand key points obtained through the handpointsprovider, calculate t
 1. Zoom in: index finger
 2. Shrinking: index finger + thumb
 
-######Graphical interface
+###### Graphical interface
 
 It is mainly the OpenGL form of QT, which is used to display the real world scene acquired by the camera and the scene after the combination of virtual and real. Some controls that can be operated by the mouse are embedded in the form, and the functions are basically the same as gesture operations. However, using the mouse will be more accurate and smoother.
 
-##Instructions for use
+## Instructions for use
 
 Start the program. At this time, the real world scene captured by the camera is displayed in the window.  Display the marker in front of the camera or use the camera scan the marker. At this time, the virtual cube appears in the window. The position and attitude of the cube depend on the position of the marker relative to the camera. At this time, a gesture can be used to intervene. After the intervention, the virtual cube no longer changes with the marker, but is controlled by the operation of the gesture.
